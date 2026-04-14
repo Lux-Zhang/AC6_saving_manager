@@ -28,6 +28,8 @@
 
 - 复核命令：
   - `PYTHONPATH=src python -m pytest tests/test_release_build.py tests/test_release_runtime.py tests/test_release_third_party.py tests/test_release_preflight.py tests/test_release_publish.py tests/test_release_evidence.py -q`
+  - `python -m compileall src tests`
+  - `flake8 tests/test_release_evidence.py`
 - 当前结果：`17 passed`
 - 关注模块：
   - `src/ac6_data_manager/release/build.py`
