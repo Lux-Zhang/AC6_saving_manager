@@ -62,13 +62,25 @@ class ReleaseEvidenceTests(unittest.TestCase):
             release_manifest.parent.mkdir(parents=True, exist_ok=True)
             release_manifest.write_text("{}", encoding="utf-8")
 
-            write_evidence_manifest(
-                output_path,
-                release_root=root / "release" / "AC6 saving manager",
-                release_content_manifest=release_manifest,
-                smoke_report=smoke_report,
-                verdict="release-pending",
-            )
-            payload = json.loads(output_path.read_text(encoding="utf-8"))
+    def test_release_verdict_reaches_live_pass_when_complete(
+        self,
+    ) -> None:
+        verdict = derive_release_verdict(
+            {
+                "zip": "pass",
+                "first-launch": "pass",
+                "preflight": "pass",
+                "sidecar": "pass",
+                "apply": "pass",
+                "rollback": "pass",
+                "second-launch": "pass",
+            },
+            preflight_ok=True,
+            real_entry_ok=True,
+            publish_ok=True,
+            rollback_ok=True,
+            game_verify_ok=True,
+            evidence_complete=True,
+        )
 
         self.assertEqual(payload["artifacts"]["smoke_report"], str(smoke_report))
