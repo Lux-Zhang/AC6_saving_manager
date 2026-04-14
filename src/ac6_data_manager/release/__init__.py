@@ -9,6 +9,7 @@ from .evidence import (
     build_smoke_report,
     derive_release_verdict,
     write_evidence_manifest,
+    write_live_acceptance_capture_templates,
     write_release_content_manifest,
     write_smoke_report,
 )
@@ -63,6 +64,7 @@ __all__ = [
     "stage_portable_release",
     "verify_manifest",
     "write_evidence_manifest",
+    "write_live_acceptance_capture_templates",
     "write_preflight_outputs",
     "write_publish_artifacts",
     "write_release_content_manifest",

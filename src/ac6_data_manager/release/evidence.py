@@ -7,6 +7,33 @@ from typing import Mapping
 from ac6_data_manager.container_workspace.adapter import sha256_file
 from ac6_data_manager.container_workspace.workspace import iso_now
 
+from .publish import publish_contract_snapshot
+
+
+LIVE_ACCEPTANCE_STEPS = (
+    "unzip portable zip",
+    "first launch exe",
+    "preflight",
+    "third-party gate",
+    "dry-run",
+    "apply -> fresh destination",
+    "readback",
+    "rollback -> fresh destination",
+    "second launch",
+    "game verify",
+)
+
+HUORONG_MATRIX_STEPS = (
+    "unzip",
+    "first launch",
+    "preflight",
+    "sidecar",
+    "dry-run",
+    "apply",
+    "rollback",
+    "second launch",
+)
+
 
 def collect_release_content_manifest(app_root: Path) -> list[dict[str, object]]:
     app_root = Path(app_root)
@@ -163,3 +190,81 @@ def write_evidence_manifest(
         encoding="utf-8",
     )
     return output_path
+
+
+def write_live_acceptance_capture_templates(
+    output_dir: Path,
+    *,
+    release_root: Path,
+    huorong_dir: Path | None = None,
+    machine: str = "ZPX-GE77",
+    operator: str = "fill manually",
+) -> dict[str, str]:
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    matrix_root = Path(huorong_dir or output_dir.parent / "huorong")
+    matrix_root.mkdir(parents=True, exist_ok=True)
+
+    checklist_path = output_dir / "checklist-manual.md"
+    checklist_lines = [
+        "# ZPX-GE77 Live Acceptance Capture",
+        "",
+        f"- release_root: {Path(release_root)}",
+        f"- machine: {machine}",
+        f"- operator: {operator}",
+        "- huorong: pass | manual-allow | blocked",
+        "",
+        "## Steps",
+        *[f"- [ ] {step}" for step in LIVE_ACCEPTANCE_STEPS],
+        "",
+        "## Verdict",
+        "- [ ] live-pass",
+        "- [ ] conditional-pass",
+        "- [ ] fail",
+        "- [ ] release-pending",
+        "",
+    ]
+    checklist_path.write_text("\n".join(checklist_lines), encoding="utf-8")
+
+    context_path = output_dir / "capture-context.json"
+    context_payload = {
+        "generated_at": iso_now(),
+        "release_root": str(Path(release_root)),
+        "machine": machine,
+        "operator": operator,
+        "contract": publish_contract_snapshot(),
+        "required_artifacts": {
+            "publish_audit": "artifacts/live_acceptance/publish-audit-<stamp>.json",
+            "readback_report": "artifacts/live_acceptance/readback-<stamp>.json",
+            "rollback_report": "artifacts/live_acceptance/rollback-<stamp>.json",
+            "incident_artifact": "artifacts/live_acceptance/incident-<stamp>.json",
+            "checklist_capture": str(checklist_path),
+            "huorong_matrix": str(matrix_root / "huorong-matrix-template.json"),
+        },
+        "steps": list(LIVE_ACCEPTANCE_STEPS),
+    }
+    context_path.write_text(
+        json.dumps(context_payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    huorong_matrix_path = matrix_root / "huorong-matrix-template.json"
+    huorong_payload = {
+        "generated_at": iso_now(),
+        "machine": machine,
+        "policy_values": ["pass", "manual-allow", "blocked"],
+        "steps": [
+            {"step": step, "result": "pending", "evidence": "", "notes": ""}
+            for step in HUORONG_MATRIX_STEPS
+        ],
+    }
+    huorong_matrix_path.write_text(
+        json.dumps(huorong_payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    return {
+        "checklist_capture": str(checklist_path),
+        "capture_context": str(context_path),
+        "huorong_matrix_template": str(huorong_matrix_path),
+    }

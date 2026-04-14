@@ -9,17 +9,31 @@
 - 不伪造 `ZPX-GE77` 真机结果；缺少实机证据时 verdict 仍必须保持 `release-pending`。
 
 ## 3. 工具
-### 3.1 手工步骤模板
-- `scripts/live_acceptance_capture.ps1`
-- 作用：在 Windows 验收机上生成 `artifacts/live_acceptance/checklist-manual.md`，供 unzip、首启、preflight、apply、rollback、二次启动与 game verify 手工勾验。
+### 3.1 验收模板准备器
+- `scripts/prepare_live_acceptance_capture.py`
+- 作用：生成三类模板产物：
+  - `artifacts/live_acceptance/checklist-manual.md`
+  - `artifacts/live_acceptance/capture-context.json`
+  - `artifacts/huorong/huorong-matrix-template.json`
+- 约束：`release-root` 必须存在；模板内继续显式声明 `fresh-destination-only`、`post-write readback`、`fail-closed` 合同。
 
-### 3.2 证据索引写入器
+### 3.2 Windows 手工步骤模板
+- `scripts/live_acceptance_capture.ps1`
+- 作用：在 Windows 验收机上快速生成基础 checklist；若需要完整契约与 Huorong 模板，优先使用 Python 准备器。
+
+### 3.3 证据索引写入器
 - `scripts/record_live_acceptance_evidence.py`
 - 作用：把已存在的 live acceptance 证据路径写回 `artifacts/release/evidence-manifest.json` 或指定输出文件。
 - 约束：所有通过参数传入的路径都必须已存在；缺失路径直接失败，防止把不存在的证据写入 manifest。
 
 ## 4. 推荐命令
 ```bash
+python scripts/prepare_live_acceptance_capture.py \
+  --release-root artifacts/release/AC6\ saving\ manager \
+  --output-dir artifacts/live_acceptance \
+  --huorong-dir artifacts/huorong \
+  --machine ZPX-GE77
+
 python scripts/record_live_acceptance_evidence.py \
   --release-root artifacts/release/AC6\ saving\ manager \
   --release-content-manifest artifacts/release/content-manifest.json \
@@ -38,6 +52,11 @@ python scripts/record_live_acceptance_evidence.py \
 ```
 
 ## 5. 验收
+- 模板准备器必须生成：
+  - `checklist-manual.md`
+  - `capture-context.json`
+  - `huorong-matrix-template.json`
+- `capture-context.json` 内必须保留 publish/rollback/readback/incident 的证据位点说明与 contract 快照。
 - `evidence-manifest.json` 中必须出现：
   - `publish_audit`
   - `readback_report`
