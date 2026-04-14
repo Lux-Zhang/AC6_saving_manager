@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "name": "WitchyBND",
+  "source_baseline": "ACVIEmblemCreator bundled version",
+  "version_label": "REPLACE_ME",
+  "entrypoint": "third_party/WitchyBND/WitchyBND.exe",
+  "required": true,
+  "preflight_policy": "fail_closed",
+  "generated_at": "ISO8601",
+  "files": []
+}

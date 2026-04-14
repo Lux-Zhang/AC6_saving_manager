@@ -1,0 +1,7 @@
+AC6 Data Manager M1.5 Known Limitations
+
+1. M1.5 仅支持 Windows x64 one-folder portable release。
+2. 默认 builder 为 PyInstaller one-folder；Nuitka 不在默认执行路径。
+3. AC mutation 继续禁止；五个 AC gate 保持 locked。
+4. Fixture demo provider 仅允许 --demo 或开发模式。
+5. live-pass 只能在 ZPX-GE77 + Huorong 实机证据完整时声明；若缺少该证据，发布结论必须保持 release-pending 或 conditional-pass。

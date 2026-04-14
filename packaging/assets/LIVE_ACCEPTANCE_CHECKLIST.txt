@@ -1,0 +1,13 @@
+AC6 Data Manager M1.5 Live Acceptance Checklist
+
+[ ] Windows 10/11 x64
+[ ] Huorong enabled
+[ ] Offline-ready path confirmed
+[ ] third_party manifest gate pass
+[ ] provider proof = service_bundle
+[ ] dry-run completed
+[ ] apply wrote to fresh destination
+[ ] post-write readback pass
+[ ] rollback wrote to fresh destination
+[ ] in-game verify completed
+[ ] verdict recorded

@@ -235,6 +235,30 @@ class SaveWorkspaceTests(unittest.TestCase):
 
         self.assertIn("In-place overwrite is forbidden", str(raised.exception))
 
+    def test_apply_rejects_existing_output_path_for_fresh_destination_only(self) -> None:
+        transaction = PackTransaction(
+            FakeContainerAdapter(),
+            working_root=self.root / "workspaces",
+        )
+        output_save = self.root / "outputs" / "AC60000-managed.sl2"
+        output_save.parent.mkdir(parents=True, exist_ok=True)
+        output_save.write_text("existing", encoding="utf-8")
+
+        def mutate(unpacked_root: Path) -> list[str]:
+            (unpacked_root / "USER_DATA007").write_bytes(b"after-apply")
+            return ["USER_DATA007"]
+
+        with self.assertRaises(PackTransactionError) as raised:
+            transaction.run(
+                self.source_save,
+                plan_summary="fresh destination guard",
+                mutate=mutate,
+                dry_run=False,
+                output_save=output_save,
+            )
+
+        self.assertIn("fresh destination", str(raised.exception))
+
 
 class WitchyAdapterTests(unittest.TestCase):
     def setUp(self) -> None:

@@ -1,0 +1,12 @@
+AC6 Data Manager M1.5 Quick Start
+
+1. 解压 portable zip 到新的空目录。
+2. 确认目录内存在：
+   - AC6 saving manager.exe
+   - third_party/WitchyBND/
+   - third_party/third_party_manifest.json
+   - docs/LIVE_ACCEPTANCE_CHECKLIST.txt
+   - docs/KNOWN_LIMITATIONS.txt
+3. 首次启动前，不要把输出保存到原始 source save 路径。
+4. 先执行 preflight，再进入 live acceptance。
+5. 所有 apply/rollback 输出都必须使用 fresh destination。

@@ -210,6 +210,10 @@ class SaveWorkspace:
                 "In-place overwrite is forbidden; output_save must differ "
                 "from source_save"
             )
+        if output_save.exists():
+            raise ValueError(
+                "Output path already exists; publish requires a fresh destination"
+            )
         output_save.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(self.layout.shadow_container, output_save)
         return output_save
