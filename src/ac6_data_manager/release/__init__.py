@@ -6,9 +6,11 @@ from .build import (
     stage_portable_release,
 )
 from .evidence import (
+    build_smoke_report,
     derive_release_verdict,
     write_evidence_manifest,
     write_release_content_manifest,
+    write_smoke_report,
 )
 from .preflight import (
     PreflightCheck,
@@ -48,6 +50,7 @@ __all__ = [
     "RuntimeContext",
     "ThirdPartyManifest",
     "ThirdPartyManifestFile",
+    "build_smoke_report",
     "build_demo_provider",
     "build_manifest_for_release",
     "build_provider_bundle",
@@ -64,4 +67,5 @@ __all__ = [
     "write_publish_artifacts",
     "write_release_content_manifest",
     "write_rollback_artifact",
+    "write_smoke_report",
 ]

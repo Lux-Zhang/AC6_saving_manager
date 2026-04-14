@@ -13,12 +13,14 @@ if str(SRC_ROOT) not in sys.path:
 
 from ac6_data_manager.release import (
     APP_DIRNAME,
+    build_smoke_report,
     run_preflight,
     stage_portable_release,
     verify_manifest,
     write_evidence_manifest,
     write_preflight_outputs,
     write_release_content_manifest,
+    write_smoke_report,
 )
 from ac6_data_manager.release.runtime import emit_provider_proof
 
@@ -55,7 +57,7 @@ def main() -> int:
     release_manifest_path = args.release_base_dir / "content-manifest.json"
     write_release_content_manifest(layout.app_root, release_manifest_path)
     provider_proof_path = preflight_root / "real-entry-proof.json"
-    emit_provider_proof(provider_proof_path, argv=(), app_root=layout.app_root)
+    provider_proof = emit_provider_proof(provider_proof_path, argv=(), app_root=layout.app_root)
 
     third_party_result = verify_manifest(
         layout.app_root,
@@ -72,6 +74,18 @@ def main() -> int:
     preflight_json = preflight_root / "preflight-report.json"
     preflight_txt = preflight_root / "preflight-report.txt"
     write_preflight_outputs(report, json_path=preflight_json, text_path=preflight_txt)
+    smoke_payload = build_smoke_report(
+        layout.app_root,
+        provider_proof=provider_proof,
+        preflight_report=report.to_dict(),
+    )
+    smoke_report_path = preflight_root / "smoke-baseline.json"
+    write_smoke_report(
+        smoke_report_path,
+        release_root=layout.app_root,
+        provider_proof=provider_proof,
+        preflight_report=report.to_dict(),
+    )
 
     evidence_manifest_path = args.release_base_dir / "evidence-manifest.json"
     write_evidence_manifest(
@@ -81,6 +95,7 @@ def main() -> int:
         third_party_report=third_party_report_path,
         preflight_report=preflight_json,
         runtime_proof=provider_proof_path,
+        smoke_report=smoke_report_path,
         verdict="release-pending",
         notes=("Requires ZPX-GE77 live acceptance evidence before live-pass.",),
     )
@@ -88,6 +103,7 @@ def main() -> int:
     summary = {
         "release_root": str(layout.app_root),
         "preflight_status": report.overall_status,
+        "smoke_status": smoke_payload["status"],
         "third_party_success": third_party_result.success,
         "evidence_manifest": str(evidence_manifest_path),
     }

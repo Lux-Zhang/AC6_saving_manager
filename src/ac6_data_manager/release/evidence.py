@@ -38,6 +38,63 @@ def write_release_content_manifest(app_root: Path, output_path: Path) -> Path:
     return output_path
 
 
+def build_smoke_report(
+    release_root: Path,
+    *,
+    provider_proof: Mapping[str, object],
+    preflight_report: Mapping[str, object],
+) -> dict[str, object]:
+    provider_kind = str(provider_proof.get("provider_kind", ""))
+    is_demo = bool(provider_proof.get("is_demo", False))
+    preflight_status = str(preflight_report.get("overall_status", "unknown"))
+    checks = {
+        "provider-kind": {
+            "status": "pass" if provider_kind == "service_bundle" else "blocked",
+            "expected": "service_bundle",
+            "actual": provider_kind,
+        },
+        "demo-gate": {
+            "status": "pass" if not is_demo else "blocked",
+            "expected": False,
+            "actual": is_demo,
+        },
+        "preflight": {
+            "status": "pass" if preflight_status == "pass" else "blocked",
+            "expected": "pass",
+            "actual": preflight_status,
+        },
+    }
+    status = "pass" if all(check["status"] == "pass" for check in checks.values()) else "blocked"
+    return {
+        "generated_at": iso_now(),
+        "release_root": str(Path(release_root)),
+        "status": status,
+        "checks": checks,
+        "provider_proof": dict(provider_proof),
+        "preflight_report": dict(preflight_report),
+    }
+
+
+def write_smoke_report(
+    output_path: Path,
+    *,
+    release_root: Path,
+    provider_proof: Mapping[str, object],
+    preflight_report: Mapping[str, object],
+) -> Path:
+    payload = build_smoke_report(
+        release_root,
+        provider_proof=provider_proof,
+        preflight_report=preflight_report,
+    )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return output_path
+
+
 def derive_release_verdict(
     huorong_matrix: Mapping[str, str] | None,
     *,
