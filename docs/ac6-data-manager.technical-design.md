@@ -370,3 +370,58 @@ $ralph "基于 $team 第一阶段产出做串行收口，只整合 M0、M0.5、M
 1. `$team` 阶段不允许以任何形式解锁 AC experimental mutation。
 2. `$ralph` 阶段的目标是整合与验收，而不是扩大范围。
 3. 只有在后续 gate 证据闭合并重新通过评审后，才能为 AC experimental import 制定新的执行命令。
+
+
+## 14. 实施状态与证据索引（2026-04-14）
+
+### 14.1 代码实现状态
+
+#### Container / Workspace
+- `src/ac6_data_manager/container_workspace/adapter.py`：WitchyBND 受控适配、版本/哈希描述、解包/回包抽象。
+- `src/ac6_data_manager/container_workspace/workspace.py`：workspace id、restore point、incident bundle、shadow copy、禁止原地覆盖。
+- `src/ac6_data_manager/container_workspace/transaction.py`：dry-run/apply、manifest diff、post-write readback、fail-closed、audit payload。
+
+#### Emblem stable lane
+- `src/ac6_data_manager/emblem/binary.py`：`USER_DATA007` AES-CBC、压缩块、`EMBC` block container、`files/extra_files` 分区。
+- `src/ac6_data_manager/emblem/importer.py`：手动选定 share emblem -> user editable import。
+- `src/ac6_data_manager/emblem/package.py`：`ac6emblempkg` v1 导入/导出与 apply 到容器副本。
+- `src/ac6_data_manager/emblem/catalog.py`：catalog 与 editable 判定。
+- `src/ac6_data_manager/emblem/preview.py`：PIL 预览与未知 decal 的 fail-soft placeholder。
+
+#### Validation / Rollback / Audit
+- `src/ac6_data_manager/validation/audit.py`：audit JSONL、incident bundle index。
+- `src/ac6_data_manager/validation/corpus.py`：golden corpus manifest 生成与校验。
+- `src/ac6_data_manager/validation/rollback.py`：restore point -> 新输出路径回滚，禁止 in-place restore。
+- `src/ac6_data_manager/validation/baseline.py`：M0/M0.5/M1 与 AC gate 约束模型。
+
+#### GUI shell
+- `src/ac6_data_manager/gui/dto.py`：GUI DTO。
+- `src/ac6_data_manager/gui/models.py`：Qt model。
+- `src/ac6_data_manager/gui/dialogs.py`：ImportPlan / DeleteImpactPlan 对话框。
+- `src/ac6_data_manager/gui/main_window.py`：主窗口、library、detail、audit 视图。
+- `src/ac6_data_manager/app.py`：可运行 demo provider 与启动入口。
+
+### 14.2 当前已验证的不变量
+
+1. 所有 save mutation 只能在 shadow workspace 中进行。
+2. source save 不允许 in-place overwrite。
+3. apply 前必须存在 dry-run / plan 语义。
+4. apply 后必须执行 readback；失败则 fail-closed 并保留 incident artifact。
+5. rollback 必须输出到新路径，不允许覆盖当前源文件。
+6. AC mutation 保持禁用；当前代码范围未新增 AC apply/import/delete 入口。
+
+### 14.3 自动化验证索引
+
+- `tests/test_container_workspace.py`：5 个测试，覆盖 shadow workspace、restore point、readback、incident、in-place overwrite 阻断、fake WitchyBND round-trip。
+- `tests/test_emblem_binary.py`、`tests/test_emblem_import.py`、`tests/test_emblem_package.py`、`tests/test_emblem_preview.py`：覆盖二进制 parse/serialize、share->user import、package v1、preview placeholder。
+- `tests/test_validation_audit.py`、`tests/test_validation_corpus.py`、`tests/test_validation_rollback.py`、`tests/test_validation_baseline.py`、`tests/test_validation_readiness.py`：覆盖 audit、golden corpus、rollback、baseline、M2 readiness。
+- `tests/test_gui_models.py`、`tests/test_gui_windows.py`：覆盖 PyQt5 model、主窗口与两个关键 dialog。
+- 全量命令：`QT_QPA_PLATFORM=offscreen PYTHONPATH=src pytest tests -q`
+- 当前结果：`27 passed`
+
+### 14.4 当前仍未闭合项
+
+1. 真实 WitchyBND 与真实 `.sl2` 的端到端写回证据。
+2. 游戏内人工验收。
+3. `docs/reverse/` 与 AC read-only explorer 的 reverse artifacts。
+4. AC gate 的 `record-map / dependency / preview-provenance` 正式证据闭环。

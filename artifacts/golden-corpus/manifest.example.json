@@ -1,0 +1,26 @@
+{
+  "version": "v1",
+  "rule_set_version": "v1.0-baseline",
+  "generated_at": "2026-04-14T00:00:00Z",
+  "hash_algorithm": "sha256",
+  "metadata": {
+    "lane": "validation",
+    "scope": "M0-M1"
+  },
+  "entries": [
+    {
+      "logical_name": "example-emblem-baseline",
+      "relative_path": "samples/example-emblem.bin",
+      "sha256": "<replace-with-real-sha256>",
+      "byte_size": 0,
+      "tags": [
+        "emblem",
+        "baseline"
+      ],
+      "expectations": {
+        "origin": "share",
+        "editable": "unknown"
+      }
+    }
+  ]
+}

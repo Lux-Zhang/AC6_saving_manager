@@ -258,3 +258,42 @@
 - result status
 
 高风险失败必须自动产出 incident bundle，供复现与后续治理使用。
+
+
+## 8. 当前实现证据索引（2026-04-14）
+
+### 8.1 自动化回归结果
+
+- 命令：`QT_QPA_PLATFORM=offscreen PYTHONPATH=src pytest tests -q`
+- 结果：`27 passed`
+- 机器可读摘要：`../../artifacts/verification/phase1/pytest-summary.json`
+
+### 8.2 M0 / M0.5 / M1 当前状态
+
+| Milestone | 当前仓库结论 | 已有证据 | 仍缺项 |
+|---|---|---|---|
+| `M0` | `PARTIAL` | 已有 workspace / audit / golden corpus helper 等基础设施。 | `docs/reverse/`、样本索引、真实扫描 corpus 仍缺。 |
+| `M0.5` | `REPO-PASS / LIVE-PENDING` | shadow workspace、restore point、readback、incident、rollback、audit 已实现并有自动化测试。 | 真实 WitchyBND + 真实 `.sl2` + 游戏外部验证待补。 |
+| `M1` | `REPO-PASS / RELEASE-PENDING` | emblem binary、share->user import、package v1、preview、PyQt5 GUI、audit/rollback 已实现并有自动化测试。 | 游戏内“可见/可编辑/可保存/预览正确”与真实存档演练待补。 |
+
+### 8.3 关键证据文件
+
+- `tests/test_container_workspace.py`
+- `tests/test_emblem_binary.py`
+- `tests/test_emblem_import.py`
+- `tests/test_emblem_package.py`
+- `tests/test_emblem_preview.py`
+- `tests/test_gui_models.py`
+- `tests/test_gui_windows.py`
+- `tests/test_validation_audit.py`
+- `tests/test_validation_corpus.py`
+- `tests/test_validation_rollback.py`
+- `artifacts/roundtrip-reports/emblem-stable-lane-automated.md`
+- `docs/appendices/ac6-data-manager.m0-m1-verifier-report.md`
+- `docs/appendices/ac6-data-manager.m2-readiness.md`
+
+### 8.4 当前 gate 结论
+
+- Emblem stable lane：仓库级实现已闭合，自动化回归通过。
+- AC lane：5 个 gate 继续保持锁定；当前仅允许 read-only baseline 与 reverse artifacts 整理。
+- 只有在 `docs/reverse/` 与 AC gate 产物补齐后，才能重新发起 M2/M3 评审。

@@ -9,14 +9,14 @@ import textwrap
 import unittest
 from pathlib import Path
 
-from src.ac6_data_manager.container_workspace import (
+from ac6_data_manager.container_workspace import (
     PackTransaction,
     PackTransactionError,
     PostWriteReadbackError,
     ToolchainInfo,
     WitchyBndAdapter,
 )
-from src.ac6_data_manager.container_workspace.workspace import snapshot_directory_manifest
+from ac6_data_manager.container_workspace.workspace import snapshot_directory_manifest
 
 
 class FakeContainerAdapter:
@@ -32,9 +32,17 @@ class FakeContainerAdapter:
     def describe_toolchain(self) -> ToolchainInfo:
         return self.toolchain
 
-    def unpack(self, container_path: Path, *, expected_directory: Path | None = None) -> Path:
+    def unpack(
+        self,
+        container_path: Path,
+        *,
+        expected_directory: Path | None = None,
+    ) -> Path:
         payload = json.loads(Path(container_path).read_text(encoding="utf-8"))
-        target = Path(expected_directory or container_path.with_name(f"{container_path.stem}-sl2"))
+        target = Path(
+            expected_directory
+            or container_path.with_name(f"{container_path.stem}-sl2")
+        )
         if target.exists():
             shutil.rmtree(target)
         target.mkdir(parents=True, exist_ok=True)
@@ -42,7 +50,11 @@ class FakeContainerAdapter:
             file_path = target / relative_path
             file_path.parent.mkdir(parents=True, exist_ok=True)
             content = base64.b64decode(encoded_content)
-            if self.corrupt_readback and target.name == "readback" and relative_path == "USER_DATA007":
+            if (
+                self.corrupt_readback
+                and target.name == "readback"
+                and relative_path == "USER_DATA007"
+            ):
                 content += b"-corrupted"
             file_path.write_bytes(content)
         (target / ".ac6dm_unpack_meta.json").write_text(
@@ -51,7 +63,12 @@ class FakeContainerAdapter:
         )
         return target
 
-    def repack(self, unpacked_directory: Path, *, expected_container: Path | None = None) -> Path:
+    def repack(
+        self,
+        unpacked_directory: Path,
+        *,
+        expected_container: Path | None = None,
+    ) -> Path:
         target = Path(expected_container or unpacked_directory.with_suffix(".sl2"))
         files: dict[str, str] = {}
         for file_path in sorted(Path(unpacked_directory).rglob("*")):
@@ -63,7 +80,10 @@ class FakeContainerAdapter:
                 file_path.read_bytes()
             ).decode("ascii")
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(json.dumps({"files": files}, ensure_ascii=True, indent=2), encoding="utf-8")
+        target.write_text(
+            json.dumps({"files": files}, ensure_ascii=True, indent=2),
+            encoding="utf-8",
+        )
         return target
 
 
@@ -90,7 +110,10 @@ class SaveWorkspaceTests(unittest.TestCase):
         self.tempdir.cleanup()
 
     def test_dry_run_uses_shadow_workspace_without_overwriting_source(self) -> None:
-        transaction = PackTransaction(FakeContainerAdapter(), working_root=self.root / "workspaces")
+        transaction = PackTransaction(
+            FakeContainerAdapter(),
+            working_root=self.root / "workspaces",
+        )
 
         def mutate(unpacked_root: Path) -> list[str]:
             target = unpacked_root / "USER_DATA007"
@@ -112,17 +135,28 @@ class SaveWorkspaceTests(unittest.TestCase):
             b"before",
         )
         self.assertTrue(result.restore_point.backup_path.exists())
-        manifest = json.loads(result.restore_point.manifest_path.read_text(encoding="utf-8"))
-        self.assertEqual(manifest["source_sha256"], result.restore_point.source_sha256)
+        manifest = json.loads(
+            result.restore_point.manifest_path.read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            manifest["source_sha256"],
+            result.restore_point.source_sha256,
+        )
         self.assertEqual(result.manifest_delta.updated, ("USER_DATA007",))
 
     def test_apply_repacks_and_readback_verifies_tracked_files(self) -> None:
-        transaction = PackTransaction(FakeContainerAdapter(), working_root=self.root / "workspaces")
+        transaction = PackTransaction(
+            FakeContainerAdapter(),
+            working_root=self.root / "workspaces",
+        )
         output_save = self.root / "outputs" / "AC60000-managed.sl2"
 
         def mutate(unpacked_root: Path) -> list[str]:
             (unpacked_root / "USER_DATA007").write_bytes(b"after-apply")
-            (unpacked_root / "catalog" / "new.txt").write_text("new-entry", encoding="utf-8")
+            (unpacked_root / "catalog" / "new.txt").write_text(
+                "new-entry",
+                encoding="utf-8",
+            )
             return ["USER_DATA007", "catalog/new.txt"]
 
         result = transaction.run(
@@ -175,10 +209,16 @@ class SaveWorkspaceTests(unittest.TestCase):
         assert result.incident_bundle is not None
         self.assertTrue(result.incident_bundle.exists())
         self.assertEqual(result.audit_entry.result_status, "blocked")
-        self.assertEqual(result.readback_report.changed_files, ("USER_DATA007",))
+        self.assertEqual(
+            result.readback_report.changed_files,
+            ("USER_DATA007",),
+        )
 
     def test_apply_rejects_in_place_overwrite(self) -> None:
-        transaction = PackTransaction(FakeContainerAdapter(), working_root=self.root / "workspaces")
+        transaction = PackTransaction(
+            FakeContainerAdapter(),
+            working_root=self.root / "workspaces",
+        )
 
         def mutate(unpacked_root: Path) -> list[str]:
             (unpacked_root / "USER_DATA007").write_bytes(b"after-apply")
@@ -213,7 +253,9 @@ class WitchyAdapterTests(unittest.TestCase):
 
                 def default_unpack_dir(container: Path) -> Path:
                     suffix = container.suffix.lstrip(".")
-                    return container.with_name(f"{container.stem}-{suffix}") if suffix else container.with_name(f"{container.name}-unpacked")
+                    if suffix:
+                        return container.with_name(f"{container.stem}-{suffix}")
+                    return container.with_name(f"{container.name}-unpacked")
 
                 def pack_directory(directory: Path) -> dict[str, str]:
                     files = {}
@@ -222,7 +264,9 @@ class WitchyAdapterTests(unittest.TestCase):
                             continue
                         if path.name == META_NAME:
                             continue
-                        files[path.relative_to(directory).as_posix()] = base64.b64encode(path.read_bytes()).decode("ascii")
+                        relative = path.relative_to(directory).as_posix()
+                        encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+                        files[relative] = encoded
                     return files
 
                 def unpack_container(container: Path) -> None:
@@ -238,9 +282,15 @@ class WitchyAdapterTests(unittest.TestCase):
                         file_path.write_bytes(base64.b64decode(encoded))
 
                 def repack_directory(directory: Path) -> None:
-                    metadata = json.loads((directory / META_NAME).read_text(encoding="utf-8"))
+                    metadata = json.loads(
+                        (directory / META_NAME).read_text(encoding="utf-8")
+                    )
                     target = directory.parent / metadata["container_name"]
-                    target.write_text(json.dumps({"files": pack_directory(directory)}, ensure_ascii=True, indent=2), encoding="utf-8")
+                    payload = {"files": pack_directory(directory)}
+                    target.write_text(
+                        json.dumps(payload, ensure_ascii=True, indent=2),
+                        encoding="utf-8",
+                    )
 
                 def main() -> int:
                     argument = sys.argv[1]
@@ -289,16 +339,25 @@ class WitchyAdapterTests(unittest.TestCase):
         )
 
         toolchain = self.adapter.describe_toolchain()
-        unpacked_root = self.adapter.unpack(container, expected_directory=self.root / "shadow" / "unpacked")
+        unpacked_root = self.adapter.unpack(
+            container,
+            expected_directory=self.root / "shadow" / "unpacked",
+        )
         self.assertEqual(toolchain.version, "fake-witchy 1.0")
         self.assertTrue((unpacked_root / ".ac6dm_unpack_meta.json").exists())
         self.assertEqual((unpacked_root / "USER_DATA007").read_bytes(), b"adapter-before")
 
         (unpacked_root / "USER_DATA007").write_bytes(b"adapter-after")
-        repacked = self.adapter.repack(unpacked_root, expected_container=self.root / "shadow" / "AC60000.sl2")
+        repacked = self.adapter.repack(
+            unpacked_root,
+            expected_container=self.root / "shadow" / "AC60000.sl2",
+        )
         readback = self.adapter.unpack(repacked, expected_directory=self.root / "readback")
         manifest = snapshot_directory_manifest(readback)
-        self.assertEqual(manifest["USER_DATA007"], snapshot_directory_manifest(unpacked_root)["USER_DATA007"])
+        self.assertEqual(
+            manifest["USER_DATA007"],
+            snapshot_directory_manifest(unpacked_root)["USER_DATA007"],
+        )
 
 
 if __name__ == "__main__":

@@ -341,3 +341,64 @@ $ralph "基于 $team 第一阶段产出做串行收口，只整合 M0、M0.5、M
 1. 先执行 `$team`，只并行推进 M0、M0.5、M1。
 2. `$team` 完成后，再执行 `$ralph` 做统一收口与验收。
 3. 在 `preview provenance proven` 与 `editability transition proven` 未闭合前，不得把 AC mutation 拉入 stable 范围。
+
+
+## 15. 实施状态与证据索引（2026-04-14）
+
+### 15.1 当前结论
+
+当前仓库已经完成 **M0 / M0.5 / M1 的仓库级实现收口**：
+- Emblem stable lane 的核心内核、GUI 原型、验证与回滚链路已经落地。
+- AC 继续保持 **read-only boundary**；未新增任何 AC apply/import/delete/repack 入口。
+- 当前证据足以支持“代码实现完成 + 自动化验证通过”的仓库结论；但仍未完成真实玩家 `.sl2`、真实 WitchyBND 工具链、游戏内人工验收三类外部验证，因此发布结论仍需保守。
+
+### 15.2 已完成范围
+
+1. **Container / Workspace lane**
+   - `src/ac6_data_manager/container_workspace/adapter.py`
+   - `src/ac6_data_manager/container_workspace/workspace.py`
+   - `src/ac6_data_manager/container_workspace/transaction.py`
+   - 能力：shadow workspace、restore point、post-write readback、incident artifact、禁止 in-place overwrite。
+2. **Emblem stable lane**
+   - `src/ac6_data_manager/emblem/binary.py`
+   - `src/ac6_data_manager/emblem/catalog.py`
+   - `src/ac6_data_manager/emblem/importer.py`
+   - `src/ac6_data_manager/emblem/package.py`
+   - `src/ac6_data_manager/emblem/preview.py`
+   - 能力：`USER_DATA007` / `EMBC` 二进制模型、share emblem -> user selectable import、`ac6emblempkg` v1、预览 fail-soft 占位。
+3. **Validation / Audit / Rollback lane**
+   - `src/ac6_data_manager/validation/audit.py`
+   - `src/ac6_data_manager/validation/baseline.py`
+   - `src/ac6_data_manager/validation/corpus.py`
+   - `src/ac6_data_manager/validation/rollback.py`
+   - 能力：audit JSONL、incident bundle index、golden corpus manifest、restore point rollback、M2 readiness 文档。
+4. **GUI shell prototype**
+   - `src/ac6_data_manager/gui/dto.py`
+   - `src/ac6_data_manager/gui/models.py`
+   - `src/ac6_data_manager/gui/dialogs.py`
+   - `src/ac6_data_manager/gui/main_window.py`
+   - `src/ac6_data_manager/app.py`
+   - 技术栈：PyQt5。
+   - 能力：emblem library、ImportPlan dialog、DeleteImpactPlan dialog、audit view。
+
+### 15.3 自动化证据
+
+- 全量测试命令：`QT_QPA_PLATFORM=offscreen PYTHONPATH=src pytest tests -q`
+- 全量结果：`27 passed`
+- 关键证据文件：
+  - `artifacts/roundtrip-reports/emblem-stable-lane-automated.md`
+  - `artifacts/verification/phase1/pytest-summary.json`
+  - `docs/appendices/ac6-data-manager.m0-m1-verifier-report.md`
+  - `docs/appendices/ac6-data-manager.m2-readiness.md`
+
+### 15.4 发布前仍需补齐的外部验证
+
+以下事项未在本轮仓库自动化中完成，仍是 stable 发布前的必要外部验证：
+1. 使用真实 WitchyBND 与真实 `.sl2` 做 end-to-end apply / rollback 演练。
+2. 在游戏内人工确认 emblem 导入后“可见、可编辑、可保存、预览正确”。
+3. 建立 `docs/reverse/` 与 AC read-only explorer 所需的 reverse artifacts，再推进 M2 证据闭环。
+
+### 15.5 当前产品级结论
+
+- **可以对外宣称**：M0 / M0.5 / M1 的仓库实现已完成，Emblem stable lane 具备代码与自动化验证基础。
+- **暂不能对外宣称**：真实存档稳定发布已完成、AC mutation 可用、AC experimental import 已解锁。

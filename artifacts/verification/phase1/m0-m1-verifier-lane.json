@@ -1,0 +1,113 @@
+{
+  "generated_at": "2026-04-14T06:50:00+08:00",
+  "scope": [
+    "M0",
+    "M0.5",
+    "M1"
+  ],
+  "mutation_policy": {
+    "ac_mutation": "forbidden",
+    "ac_scope": "read-only baseline and reverse artifacts only",
+    "notes": "Repository automation refreshed; no live game verification and no real-player save mutation evidence yet."
+  },
+  "automation": {
+    "command": "QT_QPA_PLATFORM=offscreen PYTHONPATH=src pytest tests -q",
+    "result": "27 passed",
+    "test_files": [
+      "tests/test_container_workspace.py",
+      "tests/test_emblem_binary.py",
+      "tests/test_emblem_import.py",
+      "tests/test_emblem_package.py",
+      "tests/test_emblem_preview.py",
+      "tests/test_golden_corpus.py",
+      "tests/test_gui_models.py",
+      "tests/test_gui_windows.py",
+      "tests/test_validation_audit.py",
+      "tests/test_validation_baseline.py",
+      "tests/test_validation_corpus.py",
+      "tests/test_validation_readiness.py",
+      "tests/test_validation_rollback.py"
+    ]
+  },
+  "repo_presence": {
+    "docs_reverse": false,
+    "artifacts_root": true,
+    "roundtrip_reports": true,
+    "m2_readiness": true,
+    "pyqt_gui": true,
+    "emblem_binary_lane": true,
+    "shadow_workspace_lane": true,
+    "audit_and_rollback_lane": true
+  },
+  "milestones": [
+    {
+      "id": "M0",
+      "status": "partial",
+      "positive_evidence": [
+        "workspace/corpus helper foundations implemented",
+        "artifacts root and validation helpers exist"
+      ],
+      "blocking_gaps": [
+        "docs/reverse missing",
+        "real AC sample corpus missing"
+      ]
+    },
+    {
+      "id": "M0.5",
+      "status": "repo-pass/live-pending",
+      "positive_evidence": [
+        "shadow workspace, restore point, readback, incident and rollback implemented",
+        "automated tests cover fail-closed and in-place overwrite guard"
+      ],
+      "blocking_gaps": [
+        "real WitchyBND/live-save external validation pending"
+      ]
+    },
+    {
+      "id": "M1",
+      "status": "repo-pass/release-pending",
+      "positive_evidence": [
+        "USER_DATA007/EMBC binary emblem lane implemented",
+        "share->user selectable import implemented",
+        "ac6emblempkg v1 implemented",
+        "PyQt5 GUI prototype implemented",
+        "automated round-trip/GUI/validation tests passed"
+      ],
+      "blocking_gaps": [
+        "real .sl2 + in-game manual verification pending"
+      ]
+    }
+  ],
+  "ac_gates": [
+    {
+      "id": "record-map-proven",
+      "status": "locked",
+      "reason": "reverse record-map artifacts missing"
+    },
+    {
+      "id": "dependency-graph-proven",
+      "status": "locked",
+      "reason": "reverse dependency artifacts missing"
+    },
+    {
+      "id": "editability-transition-proven",
+      "status": "locked",
+      "reason": "AC editability experiments missing"
+    },
+    {
+      "id": "preview-provenance-proven",
+      "status": "locked",
+      "reason": "AC preview provenance artifacts missing"
+    },
+    {
+      "id": "round-trip-corpus-proven",
+      "status": "locked",
+      "reason": "AC round-trip corpus and live validation missing"
+    }
+  ],
+  "handoff": [
+    "run real WitchyBND + real .sl2 emblem stable lane rehearsal",
+    "perform in-game emblem manual verification",
+    "continue M2 via read-only reverse artifacts only"
+  ]
+}

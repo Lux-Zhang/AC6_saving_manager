@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterable
@@ -133,7 +132,12 @@ class PackTransactionResult:
 
 
 class PackTransactionError(RuntimeError):
-    def __init__(self, message: str, *, result: PackTransactionResult | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        result: PackTransactionResult | None = None,
+    ) -> None:
         super().__init__(message)
         self.result = result
 
@@ -165,7 +169,11 @@ class PackTransaction:
         workspace_id: str | None = None,
     ) -> PackTransactionResult:
         source_save = Path(source_save)
-        workspace = SaveWorkspace(source_save, self.working_root, workspace_id=workspace_id)
+        workspace = SaveWorkspace(
+            source_save,
+            self.working_root,
+            workspace_id=workspace_id,
+        )
         toolchain = self.adapter.describe_toolchain()
         source_hash = sha256_file(source_save)
         shadow_save = workspace.prepare_shadow_copy()
@@ -175,7 +183,10 @@ class PackTransaction:
         readback_report: ReadbackReport | None = None
 
         try:
-            unpacked_root = self.adapter.unpack(shadow_save, expected_directory=workspace.layout.unpacked_root)
+            unpacked_root = self.adapter.unpack(
+                shadow_save,
+                expected_directory=workspace.layout.unpacked_root,
+            )
             before_manifest = snapshot_directory_manifest(unpacked_root)
             restore_point = workspace.create_restore_point(
                 plan_summary=plan_summary,
@@ -227,7 +238,10 @@ class PackTransaction:
                 raise ValueError("output_save is required for apply operations")
 
             self.adapter.repack(unpacked_root, expected_container=shadow_save)
-            readback_root = self.adapter.unpack(shadow_save, expected_directory=workspace.layout.readback_root)
+            readback_root = self.adapter.unpack(
+                shadow_save,
+                expected_directory=workspace.layout.readback_root,
+            )
             readback_manifest = snapshot_directory_manifest(readback_root)
             readback_report = self._compare_readback(
                 expected_manifest=after_manifest,
@@ -244,7 +258,9 @@ class PackTransaction:
                     result_status="blocked",
                     save_hash=source_hash,
                     plan_summary=plan_summary,
-                    details={"readback_report": self._readback_details(readback_report)},
+                    details={
+                        "readback_report": self._readback_details(readback_report)
+                    },
                 )
                 incident_bundle = workspace.capture_incident(
                     stage="post-write-readback",
@@ -274,7 +290,10 @@ class PackTransaction:
                     incident_bundle=incident_bundle,
                     workspace_root=workspace.layout.root,
                 )
-                raise PostWriteReadbackError("Post-write readback mismatch", result=result)
+                raise PostWriteReadbackError(
+                    "Post-write readback mismatch",
+                    result=result,
+                )
 
             final_output = workspace.copy_shadow_to_output(output_save)
             audit_entry = self._build_audit_entry(

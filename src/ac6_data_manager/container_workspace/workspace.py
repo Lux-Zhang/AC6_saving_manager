@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import secrets
 import shutil
@@ -69,7 +68,13 @@ class RestorePoint:
 
 
 class SaveWorkspace:
-    def __init__(self, source_save: Path, working_root: Path, *, workspace_id: str | None = None) -> None:
+    def __init__(
+        self,
+        source_save: Path,
+        working_root: Path,
+        *,
+        workspace_id: str | None = None,
+    ) -> None:
         self.source_save = Path(source_save)
         self.working_root = Path(working_root)
         resolved_workspace_id = workspace_id or make_workspace_id()
@@ -124,9 +129,10 @@ class SaveWorkspace:
         shutil.copy2(self.source_save, backup_path)
         source_sha256 = source_hash or sha256_file(self.source_save)
         manifest_path = restore_root / "manifest.json"
+        created_at = iso_now()
         payload = {
             "restore_point_id": restore_point_id,
-            "created_at": iso_now(),
+            "created_at": created_at,
             "workspace_id": self.layout.workspace_id,
             "source_save": str(self.source_save),
             "backup_path": str(backup_path),
@@ -151,7 +157,7 @@ class SaveWorkspace:
             root=restore_root,
             backup_path=backup_path,
             manifest_path=manifest_path,
-            created_at=payload["created_at"],
+            created_at=created_at,
             source_sha256=source_sha256,
         )
 
@@ -166,7 +172,10 @@ class SaveWorkspace:
         payload: dict[str, Any],
     ) -> Path:
         self.initialize()
-        incident_id = f"incident-{utc_now().strftime('%Y%m%dT%H%M%SZ')}-{self.layout.workspace_id[-8:]}"
+        incident_id = (
+            f"incident-{utc_now().strftime('%Y%m%dT%H%M%SZ')}-"
+            f"{self.layout.workspace_id[-8:]}"
+        )
         incident_root = self.layout.incidents_root / incident_id
         incident_root.mkdir(parents=True, exist_ok=True)
         incident_path = incident_root / "incident.json"
@@ -197,7 +206,10 @@ class SaveWorkspace:
     def copy_shadow_to_output(self, output_save: Path) -> Path:
         output_save = Path(output_save)
         if output_save.resolve() == self.source_save.resolve():
-            raise ValueError("In-place overwrite is forbidden; output_save must differ from source_save")
+            raise ValueError(
+                "In-place overwrite is forbidden; output_save must differ "
+                "from source_save"
+            )
         output_save.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(self.layout.shadow_container, output_save)
         return output_save
@@ -217,7 +229,9 @@ def diff_manifests(before: dict[str, str], after: dict[str, str]) -> ManifestDel
     after_keys = set(after)
     created = tuple(sorted(after_keys - before_keys))
     deleted = tuple(sorted(before_keys - after_keys))
-    updated = tuple(sorted(path for path in before_keys & after_keys if before[path] != after[path]))
+    updated = tuple(
+        sorted(path for path in before_keys & after_keys if before[path] != after[path])
+    )
     return ManifestDelta(
         created=created,
         updated=updated,
