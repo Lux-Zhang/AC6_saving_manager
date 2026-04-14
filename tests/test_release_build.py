@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 from ac6_data_manager.release import (
+    ThirdPartyManifest,
     build_release_layout,
     stage_portable_release,
     write_release_content_manifest,
@@ -60,3 +61,20 @@ class ReleaseBuildTests(unittest.TestCase):
                 version_label="acvi-1.0",
                 source_baseline="baseline-ref",
             )
+
+    def test_stage_portable_release_pins_acvi_baseline_manifest_contract(self) -> None:
+        layout, _manifest = stage_portable_release(
+            self.dist_app_root,
+            self.release_base_dir,
+            third_party_source=self.third_party_source,
+            packaging_assets_dir=self.assets_root,
+            version_label="acvi-1.0",
+            source_baseline="ACVIEmblemCreator bundled version",
+        )
+
+        manifest = ThirdPartyManifest.load(layout.manifest_path)
+
+        self.assertEqual(manifest.source_baseline, "ACVIEmblemCreator bundled version")
+        self.assertEqual(manifest.entrypoint, "third_party/WitchyBND/WitchyBND.exe")
+        self.assertEqual(manifest.preflight_policy, "fail_closed")
+        self.assertTrue(manifest.required)

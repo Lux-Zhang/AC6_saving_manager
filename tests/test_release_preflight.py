@@ -47,6 +47,38 @@ class ReleasePreflightTests(unittest.TestCase):
         self.assertEqual(check_ids["runtime-entry"], "pass")
         self.assertEqual(check_ids["third-party-manifest"], "pass")
 
+    def test_preflight_runtime_entry_reports_release_self_check_details(self) -> None:
+        report = run_preflight(
+            self.app_root,
+            expected_version_label="acvi-1.0",
+            environ={"PATH": r"C:\\Fake\\Toolchain"},
+            platform_system="Windows",
+            machine="AMD64",
+        )
+
+        runtime_check = next(check for check in report.checks if check.check_id == "runtime-entry")
+
+        self.assertEqual(runtime_check.status, "pass")
+        self.assertEqual(runtime_check.details["provider_kind"], "service_bundle")
+        self.assertEqual(runtime_check.details["runtime_mode"], "release")
+        self.assertEqual(runtime_check.details["toolchain_policy"], "bundled-only")
+        self.assertFalse(runtime_check.details["is_demo"])
+
+    def test_preflight_blocks_explicit_demo_runtime_entry(self) -> None:
+        report = run_preflight(
+            self.app_root,
+            expected_version_label="acvi-1.0",
+            argv=("--demo",),
+            platform_system="Windows",
+            machine="AMD64",
+        )
+
+        runtime_check = next(check for check in report.checks if check.check_id == "runtime-entry")
+
+        self.assertEqual(runtime_check.status, "blocked")
+        self.assertEqual(runtime_check.summary, "默认入口落入 demo/fixture provider")
+        self.assertEqual(report.overall_status, "blocked")
+
     def test_release_verdict_stays_pending_without_live_game_verification(self) -> None:
         verdict = derive_release_verdict(
             {

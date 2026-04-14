@@ -44,3 +44,15 @@ class ReleaseRuntimeTests(unittest.TestCase):
         self.assertEqual(payload["provider_kind"], "service_bundle")
         self.assertFalse(payload["is_demo"])
         self.assertEqual(written["provider_kind"], "service_bundle")
+
+    def test_default_runtime_ignores_path_and_remains_bundled_only(self) -> None:
+        bundle = build_provider_bundle(
+            argv=(),
+            environ={"PATH": str(Path("/tmp/fake-witchybnd"))},
+        )
+
+        self.assertIsInstance(bundle.provider, ServiceBundleGuiDataProvider)
+        self.assertEqual(bundle.context.provider_kind, "service_bundle")
+        self.assertEqual(bundle.context.runtime_mode, "release")
+        self.assertEqual(bundle.context.toolchain_policy, "bundled-only")
+        self.assertFalse(bundle.context.is_demo)
