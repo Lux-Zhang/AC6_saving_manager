@@ -1,0 +1,5 @@
+<RCC>
+  <qresource prefix="/">
+    <file alias="ui/ac6dm_dark.qss">../resources/ui/ac6dm_dark.qss</file>
+  </qresource>
+</RCC>

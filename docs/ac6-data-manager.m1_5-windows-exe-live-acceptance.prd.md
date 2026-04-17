@@ -25,6 +25,13 @@
 ## 3. In Scope
 - Windows x64 one-folder portable release
 - 真实 stable-emblem 默认入口
+- GUI 必须直接覆盖本轮 live acceptance 要测试的路径：
+  - 打开真实 `.sl2` 存档
+  - 选择 fresh-destination-only 的 Apply 输出路径
+  - 浏览 real-save emblem library
+  - 选定 share emblem 并查看 ImportPlan
+  - 通过 GUI 执行 dry-run / apply / rollback
+  - 通过 GUI 查看审计结果与证据路径
 - `third_party/WitchyBND/**` manifest gate 与 no-PATH-fallback
 - controlled publish / rollback / readback / incident evidence
 - offline preflight / smoke / evidence manifest

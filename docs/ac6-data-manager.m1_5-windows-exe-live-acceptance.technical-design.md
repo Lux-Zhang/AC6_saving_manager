@@ -7,6 +7,7 @@
 ## 1. 实现对象与范围
 本轮只补齐 M1.5 收口能力，不扩展 M2/M3：
 - `src/ac6_data_manager/release/runtime.py`：真实默认入口、provider proof、demo/dev gating
+- `src/ac6_data_manager/gui/main_window.py`：把 live acceptance 所需 GUI 入口显式落到主界面，覆盖打开存档、选择 Apply 输出、dry-run、apply、rollback、审计刷新
 - `src/ac6_data_manager/release/third_party.py`：WitchyBND 目录级 manifest 生成与校验
 - `src/ac6_data_manager/release/preflight.py`：OS/arch、release layout、manifest gate、runtime entry、publish contract、offline readiness 汇总
 - `src/ac6_data_manager/release/publish.py`：publish/readback/rollback evidence 输出
@@ -20,6 +21,13 @@
 - demo 仅限：`--demo` 或开发模式环境变量
 - provider proof 通过 `--provider-proof-json` 或 `--headless-provider-check` 输出 JSON
 - proof 必须包含：`provider_kind`、`runtime_mode`、`is_demo`、`toolchain_policy`
+- 默认 GUI 还必须显式暴露以下人工验收入口，而不是只保留后端能力：
+  - `打开真实存档`
+  - `选择 Apply 输出`
+  - `执行 Dry-run`
+  - `执行 Apply`
+  - `执行 Rollback`
+  - `刷新审计`
 
 ## 3. Sidecar Manifest Gate
 - manifest 位置：`third_party/third_party_manifest.json`
@@ -51,10 +59,12 @@ artifacts/release/
 
 ## 6. 验证
 - `tests/test_release_runtime.py`
+- `tests/test_release_live_workflow.py`
 - `tests/test_release_third_party.py`
 - `tests/test_release_preflight.py`
 - `tests/test_release_build.py`
 - `tests/test_release_publish.py`
 - `tests/test_container_workspace.py`
+- `tests/test_gui_windows.py`
 
-当前仓内自动化状态：`40 passed`
+当前仓内自动化状态：`56 passed`

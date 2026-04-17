@@ -1,18 +1,28 @@
 param(
     [Parameter(Mandatory = $true)][string]$ThirdPartySource,
-    [Parameter(Mandatory = $true)][string]$VersionLabel,
-    [string]$ReleaseBaseDir = "artifacts/release",
-    [switch]$SkipPyInstaller
+    [string]$ReleaseDir = "Release",
+    [string]$BuildDir = "build/native",
+    [string]$Config = "Release",
+    [string]$VersionLabel = ""
 )
 
-$args = @(
-    "scripts/build_windows_portable.py",
-    "--third-party-source", $ThirdPartySource,
-    "--version-label", $VersionLabel,
-    "--release-base-dir", $ReleaseBaseDir
-)
-if ($SkipPyInstaller) {
-    $args += "--skip-pyinstaller"
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+$scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$repoRoot = Split-Path -Parent $scriptRoot
+$nativeReleaseRoot = Join-Path $repoRoot $ReleaseDir
+
+if (-not [string]::IsNullOrWhiteSpace($VersionLabel)) {
+    Write-Output "INFO: VersionLabel is ignored by the native-only release wrapper; output is fixed to Release."
 }
 
-python @args
+& (Join-Path $scriptRoot "build_native_windows.ps1") -BuildDir $BuildDir -Config $Config
+
+& (Join-Path $scriptRoot "package_native_windows.ps1") `
+    -BuildDir $BuildDir `
+    -Config $Config `
+    -OutputDir $nativeReleaseRoot `
+    -WitchySourceDir $ThirdPartySource
+
+Write-Output $nativeReleaseRoot
