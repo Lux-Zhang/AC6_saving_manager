@@ -1,0 +1,79 @@
+name: Windows Build Test
+description: Configure, build, test, and install the native Windows Qt application.
+
+inputs:
+  build-dir:
+    description: CMake build directory.
+    required: false
+    default: build/native
+  config:
+    description: CMake configuration.
+    required: false
+    default: Release
+  install-prefix:
+    description: Install root for cmake --install.
+    required: false
+    default: artifacts/install-root
+  log-dir:
+    description: Directory for build/test/install logs.
+    required: false
+    default: artifacts/ci/logs
+
+outputs:
+  install-prefix:
+    description: Install root used by the action.
+    value: ${{ steps.paths.outputs.install_prefix }}
+  log-dir:
+    description: Log directory used by the action.
+    value: ${{ steps.paths.outputs.log_dir }}
+
+runs:
+  using: composite
+  steps:
+    - id: paths
+      shell: pwsh
+      run: |
+        $installPrefix = '${{ inputs.install-prefix }}'
+        $logDir = '${{ inputs.log-dir }}'
+        if (Test-Path -LiteralPath $installPrefix) {
+          Remove-Item -LiteralPath $installPrefix -Recurse -Force
+        }
+        if (Test-Path -LiteralPath $logDir) {
+          Remove-Item -LiteralPath $logDir -Recurse -Force
+        }
+        New-Item -ItemType Directory -Force -Path $installPrefix | Out-Null
+        New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+        "install_prefix=$installPrefix" >> $env:GITHUB_OUTPUT
+        "log_dir=$logDir" >> $env:GITHUB_OUTPUT
+
+    - name: Build native application
+      shell: pwsh
+      working-directory: ${{ github.workspace }}
+      run: |
+        $logPath = Join-Path '${{ inputs.log-dir }}' 'build.log'
+        & powershell -ExecutionPolicy Bypass -File scripts/build_native_windows.ps1 `
+          -BuildDir '${{ inputs.build-dir }}' `
+          -Config '${{ inputs.config }}' *>&1 | Tee-Object -FilePath $logPath
+        if ($LASTEXITCODE -ne 0) {
+          throw "Build failed with exit code $LASTEXITCODE. See $logPath"
+        }
+
+    - name: Run native tests
+      shell: pwsh
+      working-directory: ${{ github.workspace }}
+      run: |
+        $logPath = Join-Path '${{ inputs.log-dir }}' 'ctest.log'
+        & ctest --test-dir '${{ inputs.build-dir }}' -C '${{ inputs.config }}' --output-on-failure *>&1 | Tee-Object -FilePath $logPath
+        if ($LASTEXITCODE -ne 0) {
+          throw "ctest failed with exit code $LASTEXITCODE. See $logPath"
+        }
+
+    - name: Install build tree
+      shell: pwsh
+      working-directory: ${{ github.workspace }}
+      run: |
+        $logPath = Join-Path '${{ inputs.log-dir }}' 'install.log'
+        & cmake --install '${{ inputs.build-dir }}' --config '${{ inputs.config }}' --prefix '${{ inputs.install-prefix }}' *>&1 | Tee-Object -FilePath $logPath
+        if ($LASTEXITCODE -ne 0) {
+          throw "Install failed with exit code $LASTEXITCODE. See $logPath"
+        }

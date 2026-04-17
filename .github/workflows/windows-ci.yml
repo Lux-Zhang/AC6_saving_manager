@@ -1,0 +1,112 @@
+name: windows-ci
+
+on:
+  push:
+    branches:
+      - main
+      - codex/**
+      - wip/**
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  windows-build-test:
+    name: windows-build-test
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: ${{ github.workspace }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Enable MSVC developer command prompt
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.6.3'
+          host: windows
+          target: desktop
+          arch: win64_msvc2019_64
+          cache: true
+
+      - name: Install vcpkg dependencies
+        run: |
+          $toolsRoot = Join-Path $env:GITHUB_WORKSPACE '_tools'
+          $vcpkgRoot = Join-Path $toolsRoot 'vcpkg'
+          if (-not (Test-Path -LiteralPath $vcpkgRoot)) {
+            git clone https://github.com/microsoft/vcpkg $vcpkgRoot
+          }
+          & (Join-Path $vcpkgRoot 'bootstrap-vcpkg.bat') -disableMetrics
+          if ($LASTEXITCODE -ne 0) {
+            throw "vcpkg bootstrap failed with exit code $LASTEXITCODE"
+          }
+          & (Join-Path $vcpkgRoot 'vcpkg.exe') install openssl:x64-windows zlib:x64-windows --triplet x64-windows
+          if ($LASTEXITCODE -ne 0) {
+            throw "vcpkg install failed with exit code $LASTEXITCODE"
+          }
+          "VCPKG_ROOT=$vcpkgRoot" >> $env:GITHUB_ENV
+          "VCPKG_DEFAULT_TRIPLET=x64-windows" >> $env:GITHUB_ENV
+          "CMAKE_TOOLCHAIN_FILE=$(Join-Path $vcpkgRoot 'scripts\\buildsystems\\vcpkg.cmake')" >> $env:GITHUB_ENV
+
+      - name: Build, test, and install
+        uses: ./.github/actions/windows-build-test
+        with:
+          build-dir: build/native
+          config: Release
+          install-prefix: artifacts/install-root
+          log-dir: artifacts/ci/logs
+
+      - name: Write workflow summary
+        run: |
+          $qtVersion = if ($env:QT_VERSION) { $env:QT_VERSION } else { '6.6.3' }
+          $vcpkgVersion = (& (Join-Path $env:VCPKG_ROOT 'vcpkg.exe') version) -join [Environment]::NewLine
+          $deps = (& (Join-Path $env:VCPKG_ROOT 'vcpkg.exe') list) -join [Environment]::NewLine
+          @"
+          ## Windows CI summary
+
+          - Qt version: $qtVersion
+          - vcpkg root: `$env:VCPKG_ROOT`
+          - vcpkg triplet: `$env:VCPKG_DEFAULT_TRIPLET`
+          - Toolchain file: `$env:CMAKE_TOOLCHAIN_FILE`
+
+          ### vcpkg version
+          ```
+          $vcpkgVersion
+          ```
+
+          ### Installed dependencies
+          ```
+          $deps
+          ```
+          "@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload install tree
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-install-root
+          path: artifacts/install-root
+          if-no-files-found: error
+
+      - name: Upload test and build logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-test-logs
+          path: |
+            artifacts/ci/logs
+            build/native/Testing
+          if-no-files-found: warn

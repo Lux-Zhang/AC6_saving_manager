@@ -1,0 +1,339 @@
+name: release-windows
+
+on:
+  push:
+    tags:
+      - v*
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Tag name to publish when running manually.
+        required: false
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  gate:
+    name: release-gate
+    runs-on: windows-2022
+    outputs:
+      enabled: ${{ steps.gate.outputs.enabled }}
+      download_url_set: ${{ steps.gate.outputs.download_url_set }}
+      sha256_set: ${{ steps.gate.outputs.sha256_set }}
+      release_tag: ${{ steps.gate.outputs.release_tag }}
+    steps:
+      - id: gate
+        shell: pwsh
+        run: |
+          $enabledValue = '${{ vars.ENABLE_RELEASE }}'
+          if ([string]::IsNullOrWhiteSpace($enabledValue)) {
+            $enabledValue = 'false'
+          }
+          $enabled = $enabledValue.ToLowerInvariant()
+          $downloadUrl = '${{ vars.WITCHYBND_DOWNLOAD_URL }}'
+          $sha256 = '${{ vars.WITCHYBND_SHA256 }}'
+          $releaseTag = ''
+          if ('${{ github.ref }}'.StartsWith('refs/tags/')) {
+            $releaseTag = '${{ github.ref_name }}'
+          } elseif ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            $releaseTag = '${{ inputs.release_tag }}'
+          }
+
+          $downloadUrlSet = if ([string]::IsNullOrWhiteSpace($downloadUrl)) { 'false' } else { 'true' }
+          $sha256Set = if ([string]::IsNullOrWhiteSpace($sha256)) { 'false' } else { 'true' }
+
+          "enabled=$enabled" >> $env:GITHUB_OUTPUT
+          "download_url_set=$downloadUrlSet" >> $env:GITHUB_OUTPUT
+          "sha256_set=$sha256Set" >> $env:GITHUB_OUTPUT
+          "release_tag=$releaseTag" >> $env:GITHUB_OUTPUT
+
+          @"
+          ## Release gate summary
+
+          - ENABLE_RELEASE: `$enabled`
+          - WITCHYBND_DOWNLOAD_URL configured: `$downloadUrlSet`
+          - WITCHYBND_SHA256 configured: `$sha256Set`
+          - Release tag: `${releaseTag}`
+          "@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+
+          if ($enabled -ne 'true') {
+            "Release job is disabled because repository variable ENABLE_RELEASE is not set to true." | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+          } elseif ([string]::IsNullOrWhiteSpace($releaseTag)) {
+            "Release upload is blocked because no release tag is available for this run." | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+          }
+
+  preflight:
+    name: release-preflight
+    needs: gate
+    if: needs.gate.outputs.enabled == 'true'
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: ${{ github.workspace }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Enable MSVC developer command prompt
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.6.3'
+          host: windows
+          target: desktop
+          arch: win64_msvc2019_64
+          cache: true
+
+      - name: Install vcpkg dependencies
+        run: |
+          $toolsRoot = Join-Path $env:GITHUB_WORKSPACE '_tools'
+          $vcpkgRoot = Join-Path $toolsRoot 'vcpkg'
+          if (-not (Test-Path -LiteralPath $vcpkgRoot)) {
+            git clone https://github.com/microsoft/vcpkg $vcpkgRoot
+          }
+          & (Join-Path $vcpkgRoot 'bootstrap-vcpkg.bat') -disableMetrics
+          if ($LASTEXITCODE -ne 0) {
+            throw "vcpkg bootstrap failed with exit code $LASTEXITCODE"
+          }
+          & (Join-Path $vcpkgRoot 'vcpkg.exe') install openssl:x64-windows zlib:x64-windows --triplet x64-windows
+          if ($LASTEXITCODE -ne 0) {
+            throw "vcpkg install failed with exit code $LASTEXITCODE"
+          }
+          "VCPKG_ROOT=$vcpkgRoot" >> $env:GITHUB_ENV
+          "VCPKG_DEFAULT_TRIPLET=x64-windows" >> $env:GITHUB_ENV
+          "CMAKE_TOOLCHAIN_FILE=$(Join-Path $vcpkgRoot 'scripts\\buildsystems\\vcpkg.cmake')" >> $env:GITHUB_ENV
+
+      - name: Validate release sidecar configuration
+        run: |
+          if ([string]::IsNullOrWhiteSpace('${{ vars.WITCHYBND_DOWNLOAD_URL }}')) {
+            throw "WITCHYBND_DOWNLOAD_URL must be configured when ENABLE_RELEASE=true."
+          }
+
+      - name: Build, test, and install
+        uses: ./.github/actions/windows-build-test
+        with:
+          build-dir: build/native
+          config: Release
+          install-prefix: artifacts/install-root
+          log-dir: artifacts/ci/logs
+
+      - name: Write preflight summary
+        run: |
+          $qtVersion = if ($env:QT_VERSION) { $env:QT_VERSION } else { '6.6.3' }
+          $vcpkgVersion = (& (Join-Path $env:VCPKG_ROOT 'vcpkg.exe') version) -join [Environment]::NewLine
+          $deps = (& (Join-Path $env:VCPKG_ROOT 'vcpkg.exe') list) -join [Environment]::NewLine
+          @"
+          ## Release preflight summary
+
+          - Qt version: $qtVersion
+          - vcpkg root: `$env:VCPKG_ROOT`
+          - vcpkg triplet: `$env:VCPKG_DEFAULT_TRIPLET`
+          - Toolchain file: `$env:CMAKE_TOOLCHAIN_FILE`
+          - Release enabled: `${{ needs.gate.outputs.enabled }}`
+          - Sidecar URL configured: `${{ needs.gate.outputs.download_url_set }}`
+          - Sidecar SHA256 configured: `${{ needs.gate.outputs.sha256_set }}`
+
+          ### vcpkg version
+          ```
+          $vcpkgVersion
+          ```
+
+          ### Installed dependencies
+          ```
+          $deps
+          ```
+          "@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload preflight install tree
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-preflight-install-root
+          path: artifacts/install-root
+          if-no-files-found: error
+
+      - name: Upload preflight logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-preflight-logs
+          path: |
+            artifacts/ci/logs
+            build/native/Testing
+          if-no-files-found: warn
+
+  release:
+    name: release-package-publish
+    needs:
+      - gate
+      - preflight
+    if: needs.gate.outputs.enabled == 'true' && needs.preflight.result == 'success' && needs.gate.outputs.release_tag != ''
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: ${{ github.workspace }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Enable MSVC developer command prompt
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.6.3'
+          host: windows
+          target: desktop
+          arch: win64_msvc2019_64
+          cache: true
+
+      - name: Install vcpkg dependencies
+        run: |
+          $toolsRoot = Join-Path $env:GITHUB_WORKSPACE '_tools'
+          $vcpkgRoot = Join-Path $toolsRoot 'vcpkg'
+          if (-not (Test-Path -LiteralPath $vcpkgRoot)) {
+            git clone https://github.com/microsoft/vcpkg $vcpkgRoot
+          }
+          & (Join-Path $vcpkgRoot 'bootstrap-vcpkg.bat') -disableMetrics
+          if ($LASTEXITCODE -ne 0) {
+            throw "vcpkg bootstrap failed with exit code $LASTEXITCODE"
+          }
+          & (Join-Path $vcpkgRoot 'vcpkg.exe') install openssl:x64-windows zlib:x64-windows --triplet x64-windows
+          if ($LASTEXITCODE -ne 0) {
+            throw "vcpkg install failed with exit code $LASTEXITCODE"
+          }
+          "VCPKG_ROOT=$vcpkgRoot" >> $env:GITHUB_ENV
+          "VCPKG_DEFAULT_TRIPLET=x64-windows" >> $env:GITHUB_ENV
+          "CMAKE_TOOLCHAIN_FILE=$(Join-Path $vcpkgRoot 'scripts\\buildsystems\\vcpkg.cmake')" >> $env:GITHUB_ENV
+
+      - name: Build, test, and install
+        uses: ./.github/actions/windows-build-test
+        with:
+          build-dir: build/native
+          config: Release
+          install-prefix: artifacts/install-root
+          log-dir: artifacts/ci/logs
+
+      - name: Download WitchyBND sidecar archive
+        run: |
+          $downloadUrl = '${{ vars.WITCHYBND_DOWNLOAD_URL }}'
+          if ([string]::IsNullOrWhiteSpace($downloadUrl)) {
+            throw "WITCHYBND_DOWNLOAD_URL must be configured when ENABLE_RELEASE=true."
+          }
+
+          $archivePath = Join-Path $env:RUNNER_TEMP 'witchybnd-sidecar.zip'
+          $extractRoot = Join-Path $env:RUNNER_TEMP 'witchybnd-sidecar'
+          Invoke-WebRequest -Uri $downloadUrl -OutFile $archivePath
+
+          $actualSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $archivePath).Hash.ToLowerInvariant()
+          $expectedSha256 = '${{ vars.WITCHYBND_SHA256 }}'.ToLowerInvariant()
+          if (-not [string]::IsNullOrWhiteSpace($expectedSha256) -and $actualSha256 -ne $expectedSha256) {
+            throw "WitchyBND archive SHA256 mismatch. Expected $expectedSha256 but received $actualSha256."
+          }
+
+          if (Test-Path -LiteralPath $extractRoot) {
+            Remove-Item -LiteralPath $extractRoot -Recurse -Force
+          }
+          Expand-Archive -Path $archivePath -DestinationPath $extractRoot -Force
+
+          $entries = @(Get-ChildItem -LiteralPath $extractRoot)
+          $candidateRoot = if ($entries.Count -eq 1 -and $entries[0].PSIsContainer) { $entries[0].FullName } else { $extractRoot }
+          $exePath = Join-Path $candidateRoot 'WitchyBND.exe'
+          if (-not (Test-Path -LiteralPath $exePath)) {
+            throw "Downloaded sidecar archive does not contain WitchyBND.exe in the archive root or a single top-level folder."
+          }
+
+          "WITCHY_SOURCE_DIR=$candidateRoot" >> $env:GITHUB_ENV
+          "WITCHY_ARCHIVE_SHA256=$actualSha256" >> $env:GITHUB_ENV
+          "WITCHY_ARCHIVE_URL=$downloadUrl" >> $env:GITHUB_ENV
+
+      - name: Package portable release
+        run: |
+          & powershell -ExecutionPolicy Bypass -File scripts/package_native_windows.ps1 `
+            -BuildDir 'build/native' `
+            -Config 'Release' `
+            -OutputDir 'Release' `
+            -WitchySourceDir $env:WITCHY_SOURCE_DIR
+          if ($LASTEXITCODE -ne 0) {
+            throw "Packaging failed with exit code $LASTEXITCODE"
+          }
+
+      - name: Smoke test release layout
+        run: |
+          & powershell -ExecutionPolicy Bypass -File scripts/smoke_test_portable.ps1 -ReleaseRoot 'Release'
+          if ($LASTEXITCODE -ne 0) {
+            throw "Smoke test failed with exit code $LASTEXITCODE"
+          }
+
+      - id: archive
+        name: Create release archive
+        run: |
+          $artifactDir = Join-Path $env:GITHUB_WORKSPACE 'artifacts\release'
+          New-Item -ItemType Directory -Force -Path $artifactDir | Out-Null
+          $archivePath = Join-Path $artifactDir ("AC6-saving-manager-{0}-windows-x64.zip" -f '${{ needs.gate.outputs.release_tag }}')
+          if (Test-Path -LiteralPath $archivePath) {
+            Remove-Item -LiteralPath $archivePath -Force
+          }
+          Compress-Archive -Path 'Release\*' -DestinationPath $archivePath -CompressionLevel Optimal
+          "archive_path=$archivePath" >> $env:GITHUB_OUTPUT
+
+      - name: Write release summary
+        run: |
+          $qtVersion = if ($env:QT_VERSION) { $env:QT_VERSION } else { '6.6.3' }
+          $vcpkgVersion = (& (Join-Path $env:VCPKG_ROOT 'vcpkg.exe') version) -join [Environment]::NewLine
+          $shaConfigured = if ('${{ needs.gate.outputs.sha256_set }}' -eq 'true') { 'true' } else { 'false' }
+          @"
+          ## Release summary
+
+          - Release enabled: `${{ needs.gate.outputs.enabled }}`
+          - Release tag: `${{ needs.gate.outputs.release_tag }}`
+          - Qt version: `$qtVersion`
+          - Sidecar URL: `$env:WITCHY_ARCHIVE_URL`
+          - Sidecar SHA256: `$env:WITCHY_ARCHIVE_SHA256`
+          - SHA256 configured: `$shaConfigured`
+          - vcpkg root: `$env:VCPKG_ROOT`
+          - Release archive: `${{ steps.archive.outputs.archive_path }}`
+
+          ### vcpkg version
+          ```
+          $vcpkgVersion
+          ```
+          "@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+          if ($shaConfigured -ne 'true') {
+            "Sidecar SHA256 was not configured; provenance is recorded in the workflow summary for this run." | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+          }
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows-bundle
+          path: |
+            ${{ steps.archive.outputs.archive_path }}
+            artifacts/live_acceptance/smoke-baseline.json
+            Release/third_party/third_party_manifest.json
+            artifacts/ci/logs
+          if-no-files-found: error
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.gate.outputs.release_tag }}
+          overwrite_files: true
+          fail_on_unmatched_files: true
+          files: |
+            ${{ steps.archive.outputs.archive_path }}
+            artifacts/live_acceptance/smoke-baseline.json
+            Release/third_party/third_party_manifest.json
