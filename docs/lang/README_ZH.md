@@ -11,6 +11,8 @@
 
 [English](../../README.md) · [亮点](#亮点) · [构建](#本地构建) · [发布流](#发布流) · [文档](#文档)
 
+[English](../../README.md) · **中文** · [Русский](README_RU.md) · [日本語](README_JA.md)
+
 ---
 
 ## 亮点
@@ -114,6 +116,8 @@ docs/         PRD、技术设计、附录与语言文档
 ## 文档
 
 - [English README](../../README.md)
+- [Русский README](README_RU.md)
+- [日本語 README](README_JA.md)
 - [GitHub CI/CD 说明](../appendices/ac6-data-manager.github-cicd.md)
 - [M1.5 发布 Runbook](../appendices/ac6-data-manager.m1_5-release-runbook.md)
 

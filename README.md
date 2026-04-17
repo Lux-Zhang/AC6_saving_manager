@@ -11,7 +11,9 @@
 [![Qt](https://img.shields.io/badge/Qt-6.6.3-41cd52)](https://www.qt.io/)
 [![C++](https://img.shields.io/badge/C%2B%2B-20-00599c)](https://isocpp.org/)
 
-[Highlights](#highlights) · [Build](#build-from-source) · [Release Flow](#release-flow) · [Project Layout](#project-layout) · [Docs](#documentation) · [中文](docs/lang/README_ZH.md)
+[Highlights](#highlights) · [Build](#build-from-source) · [Release Flow](#release-flow) · [Project Layout](#project-layout) · [Docs](#documentation)
+
+**English** · [中文](docs/lang/README_ZH.md) · [Русский](docs/lang/README_RU.md) · [日本語](docs/lang/README_JA.md)
 
 </div>
 
@@ -118,6 +120,8 @@ docs/         PRD, technical design, appendices, and language docs
 ## Documentation
 
 - [Chinese README](docs/lang/README_ZH.md)
+- [Russian README](docs/lang/README_RU.md)
+- [Japanese README](docs/lang/README_JA.md)
 - [GitHub CI/CD Notes](docs/appendices/ac6-data-manager.github-cicd.md)
 - [M1.5 Release Runbook](docs/appendices/ac6-data-manager.m1_5-release-runbook.md)
 
