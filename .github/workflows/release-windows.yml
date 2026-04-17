@@ -24,9 +24,12 @@ jobs:
     runs-on: windows-2022
     outputs:
       enabled: ${{ steps.gate.outputs.enabled }}
-      download_url_set: ${{ steps.gate.outputs.download_url_set }}
-      sha256_set: ${{ steps.gate.outputs.sha256_set }}
       release_tag: ${{ steps.gate.outputs.release_tag }}
+      sidecar_asset_found: ${{ steps.gate.outputs.sidecar_asset_found }}
+      sidecar_release_tag: ${{ steps.gate.outputs.sidecar_release_tag }}
+      sidecar_asset_name: ${{ steps.gate.outputs.sidecar_asset_name }}
+      sidecar_asset_url: ${{ steps.gate.outputs.sidecar_asset_url }}
+      sidecar_asset_digest: ${{ steps.gate.outputs.sidecar_asset_digest }}
     steps:
       - id: gate
         shell: pwsh
@@ -36,8 +39,7 @@ jobs:
             $enabledValue = 'false'
           }
           $enabled = $enabledValue.ToLowerInvariant()
-          $downloadUrl = '${{ vars.WITCHYBND_DOWNLOAD_URL }}'
-          $sha256 = '${{ vars.WITCHYBND_SHA256 }}'
+
           $releaseTag = ''
           if ('${{ github.ref }}'.StartsWith('refs/tags/')) {
             $releaseTag = '${{ github.ref_name }}'
@@ -45,27 +47,47 @@ jobs:
             $releaseTag = '${{ inputs.release_tag }}'
           }
 
-          $downloadUrlSet = if ([string]::IsNullOrWhiteSpace($downloadUrl)) { 'false' } else { 'true' }
-          $sha256Set = if ([string]::IsNullOrWhiteSpace($sha256)) { 'false' } else { 'true' }
+          $headers = @{
+            'Accept' = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+            'User-Agent' = 'ac6-saving-manager-release-workflow'
+          }
+          $sidecarRelease = Invoke-RestMethod -Headers $headers -Uri 'https://api.github.com/repos/ividyon/WitchyBND/releases/latest'
+          $sidecarAsset = $sidecarRelease.assets | Where-Object { $_.name -like '*-win-x64.zip' } | Select-Object -First 1
+
+          $assetFound = if ($null -eq $sidecarAsset) { 'false' } else { 'true' }
+          $assetName = if ($null -eq $sidecarAsset) { '' } else { $sidecarAsset.name }
+          $assetUrl = if ($null -eq $sidecarAsset) { '' } else { $sidecarAsset.browser_download_url }
+          $assetDigest = if ($null -eq $sidecarAsset -or -not ($sidecarAsset.PSObject.Properties.Name -contains 'digest')) { '' } else { $sidecarAsset.digest }
 
           "enabled=$enabled" >> $env:GITHUB_OUTPUT
-          "download_url_set=$downloadUrlSet" >> $env:GITHUB_OUTPUT
-          "sha256_set=$sha256Set" >> $env:GITHUB_OUTPUT
           "release_tag=$releaseTag" >> $env:GITHUB_OUTPUT
+          "sidecar_asset_found=$assetFound" >> $env:GITHUB_OUTPUT
+          "sidecar_release_tag=$($sidecarRelease.tag_name)" >> $env:GITHUB_OUTPUT
+          "sidecar_asset_name=$assetName" >> $env:GITHUB_OUTPUT
+          "sidecar_asset_url=$assetUrl" >> $env:GITHUB_OUTPUT
+          "sidecar_asset_digest=$assetDigest" >> $env:GITHUB_OUTPUT
 
           @"
           ## Release gate summary
 
           - ENABLE_RELEASE: `$enabled`
-          - WITCHYBND_DOWNLOAD_URL configured: `$downloadUrlSet`
-          - WITCHYBND_SHA256 configured: `$sha256Set`
           - Release tag: `${releaseTag}`
+          - WitchyBND latest tag: `$($sidecarRelease.tag_name)`
+          - WitchyBND asset found: `$assetFound`
+          - WitchyBND asset name: `$assetName`
+          - WitchyBND asset URL: `$assetUrl`
+          - WitchyBND asset digest: `$assetDigest`
           "@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
 
           if ($enabled -ne 'true') {
             "Release job is disabled because repository variable ENABLE_RELEASE is not set to true." | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
           } elseif ([string]::IsNullOrWhiteSpace($releaseTag)) {
             "Release upload is blocked because no release tag is available for this run." | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+          }
+
+          if ($assetFound -ne 'true') {
+            throw "No latest WitchyBND win-x64 zip asset was found in the upstream release metadata."
           }
 
   preflight:
@@ -114,10 +136,19 @@ jobs:
           "VCPKG_DEFAULT_TRIPLET=x64-windows" >> $env:GITHUB_ENV
           "CMAKE_TOOLCHAIN_FILE=$(Join-Path $vcpkgRoot 'scripts\\buildsystems\\vcpkg.cmake')" >> $env:GITHUB_ENV
 
-      - name: Validate release sidecar configuration
+      - name: Validate release sidecar resolution
         run: |
-          if ([string]::IsNullOrWhiteSpace('${{ vars.WITCHYBND_DOWNLOAD_URL }}')) {
-            throw "WITCHYBND_DOWNLOAD_URL must be configured when ENABLE_RELEASE=true."
+          if ('${{ needs.gate.outputs.sidecar_asset_found }}' -ne 'true') {
+            throw "Latest WitchyBND win-x64 asset could not be resolved during release gate."
+          }
+          if ([string]::IsNullOrWhiteSpace('${{ needs.gate.outputs.sidecar_asset_url }}')) {
+            throw "Latest WitchyBND asset URL is empty."
+          }
+          if ([string]::IsNullOrWhiteSpace('${{ needs.gate.outputs.sidecar_asset_digest }}')) {
+            throw "Latest WitchyBND asset digest is missing from upstream release metadata."
+          }
+          if (-not '${{ needs.gate.outputs.sidecar_asset_digest }}'.StartsWith('sha256:')) {
+            throw "Latest WitchyBND asset digest is not a sha256 digest: ${{ needs.gate.outputs.sidecar_asset_digest }}"
           }
 
       - name: Build, test, and install
@@ -141,8 +172,10 @@ jobs:
           - vcpkg triplet: `$env:VCPKG_DEFAULT_TRIPLET`
           - Toolchain file: `$env:CMAKE_TOOLCHAIN_FILE`
           - Release enabled: `${{ needs.gate.outputs.enabled }}`
-          - Sidecar URL configured: `${{ needs.gate.outputs.download_url_set }}`
-          - Sidecar SHA256 configured: `${{ needs.gate.outputs.sha256_set }}`
+          - WitchyBND latest tag: `${{ needs.gate.outputs.sidecar_release_tag }}`
+          - WitchyBND asset name: `${{ needs.gate.outputs.sidecar_asset_name }}`
+          - WitchyBND asset URL: `${{ needs.gate.outputs.sidecar_asset_url }}`
+          - WitchyBND asset digest: `${{ needs.gate.outputs.sidecar_asset_digest }}`
 
           ### vcpkg version
           ```
@@ -229,9 +262,9 @@ jobs:
 
       - name: Download WitchyBND sidecar archive
         run: |
-          $downloadUrl = '${{ vars.WITCHYBND_DOWNLOAD_URL }}'
+          $downloadUrl = '${{ needs.gate.outputs.sidecar_asset_url }}'
           if ([string]::IsNullOrWhiteSpace($downloadUrl)) {
-            throw "WITCHYBND_DOWNLOAD_URL must be configured when ENABLE_RELEASE=true."
+            throw "Latest WitchyBND asset URL is empty."
           }
 
           $archivePath = Join-Path $env:RUNNER_TEMP 'witchybnd-sidecar.zip'
@@ -239,8 +272,15 @@ jobs:
           Invoke-WebRequest -Uri $downloadUrl -OutFile $archivePath
 
           $actualSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $archivePath).Hash.ToLowerInvariant()
-          $expectedSha256 = '${{ vars.WITCHYBND_SHA256 }}'.ToLowerInvariant()
-          if (-not [string]::IsNullOrWhiteSpace($expectedSha256) -and $actualSha256 -ne $expectedSha256) {
+          $expectedDigest = '${{ needs.gate.outputs.sidecar_asset_digest }}'
+          if ([string]::IsNullOrWhiteSpace($expectedDigest)) {
+            throw "Latest WitchyBND asset digest is missing from upstream release metadata."
+          }
+          if (-not $expectedDigest.StartsWith('sha256:')) {
+            throw "Latest WitchyBND asset digest is not a sha256 digest: $expectedDigest"
+          }
+          $expectedSha256 = $expectedDigest.Substring(7).ToLowerInvariant()
+          if ($actualSha256 -ne $expectedSha256) {
             throw "WitchyBND archive SHA256 mismatch. Expected $expectedSha256 but received $actualSha256."
           }
 
@@ -259,6 +299,8 @@ jobs:
           "WITCHY_SOURCE_DIR=$candidateRoot" >> $env:GITHUB_ENV
           "WITCHY_ARCHIVE_SHA256=$actualSha256" >> $env:GITHUB_ENV
           "WITCHY_ARCHIVE_URL=$downloadUrl" >> $env:GITHUB_ENV
+          "WITCHY_RELEASE_TAG=${{ needs.gate.outputs.sidecar_release_tag }}" >> $env:GITHUB_ENV
+          "WITCHY_ASSET_NAME=${{ needs.gate.outputs.sidecar_asset_name }}" >> $env:GITHUB_ENV
 
       - name: Package portable release
         run: |
@@ -294,16 +336,16 @@ jobs:
         run: |
           $qtVersion = if ($env:QT_VERSION) { $env:QT_VERSION } else { '6.6.3' }
           $vcpkgVersion = (& (Join-Path $env:VCPKG_ROOT 'vcpkg.exe') version) -join [Environment]::NewLine
-          $shaConfigured = if ('${{ needs.gate.outputs.sha256_set }}' -eq 'true') { 'true' } else { 'false' }
           @"
           ## Release summary
 
           - Release enabled: `${{ needs.gate.outputs.enabled }}`
           - Release tag: `${{ needs.gate.outputs.release_tag }}`
+          - WitchyBND latest tag: `$env:WITCHY_RELEASE_TAG`
+          - WitchyBND asset name: `$env:WITCHY_ASSET_NAME`
           - Qt version: `$qtVersion`
           - Sidecar URL: `$env:WITCHY_ARCHIVE_URL`
           - Sidecar SHA256: `$env:WITCHY_ARCHIVE_SHA256`
-          - SHA256 configured: `$shaConfigured`
           - vcpkg root: `$env:VCPKG_ROOT`
           - Release archive: `${{ steps.archive.outputs.archive_path }}`
 
@@ -312,9 +354,6 @@ jobs:
           $vcpkgVersion
           ```
           "@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
-          if ($shaConfigured -ne 'true') {
-            "Sidecar SHA256 was not configured; provenance is recorded in the workflow summary for this run." | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
-          }
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4

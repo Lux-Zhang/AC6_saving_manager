@@ -6,7 +6,7 @@
 
 - `windows-ci.yml` 负责 Windows x64 构建、测试、install tree 校验
 - `release-windows.yml` 负责基于 `main + tag` 的正式打包与 GitHub Release 发布
-- `WitchyBND` sidecar 不入仓，长期从外部下载
+- `WitchyBND` sidecar 不入仓，长期从外部下载，并在每次 release preflight / release 时动态读取 upstream 最新 release 资产
 
 当前项目继续保持 Windows-only，不为 Linux 或 macOS 构造伪支持矩阵。
 
@@ -49,14 +49,15 @@
 1. `release-gate`
    - 读取仓库变量
    - 决定是否允许正式 release
-   - 输出 sidecar 配置状态和 release tag
+   - 读取 `ividyon/WitchyBND` 最新 release metadata
+   - 自动解析最新 `win-x64.zip` 资产名、下载地址与 digest
 2. `release-preflight`
    - 仅在 `ENABLE_RELEASE=true` 时运行
    - 复用 CI 的 build/test/install 路径
-   - 校验 `WITCHYBND_DOWNLOAD_URL`
+   - 校验最新 WitchyBND 资产可用且带有 `sha256:` digest
 3. `release-package-publish`
    - 仅在 release enabled、preflight 通过且存在 release tag 时运行
-   - 下载并校验 WitchyBND sidecar
+   - 下载并校验最新 WitchyBND `win-x64.zip` sidecar
    - 调用 `scripts/package_native_windows.ps1`
    - 调用 `scripts/smoke_test_portable.ps1`
    - 生成 zip 并上传到 GitHub Release
@@ -65,8 +66,8 @@
 
 以下设置不在仓库文件内表达，必须在 GitHub 仓库设置页面完成：
 
-1. 将默认分支切回 `main`
-2. 仅对 `main` 启用 branch protection
+1. 默认分支保持 `main`
+2. 仅对 `main` 启用 branch protection / ruleset
 3. 将 `windows-build-test` 设为 required status check
 
 建议保持：
@@ -75,21 +76,19 @@
 
 ## 4. Repository Variables
 
-`release-windows.yml` 依赖以下仓库变量：
+`release-windows.yml` 当前只依赖以下仓库变量：
 
 - `ENABLE_RELEASE`
   - 默认值：`false`
   - 只有显式改为 `true` 才允许正式发版
-- `WITCHYBND_DOWNLOAD_URL`
-  - 指向 WitchyBND sidecar 压缩包
-  - 当前 workflow 期望下载物为 zip
-  - zip 可以是：
-    - 根目录直接包含 `WitchyBND.exe`
-    - 或仅有一个顶层目录，该目录内包含 `WitchyBND.exe`
-- `WITCHYBND_SHA256`
-  - 可选
-  - 若配置，workflow 必须校验下载包 SHA256 完全一致
-  - 若不配置，workflow 仍会记录 provenance，但不会伪造校验通过
+
+`WitchyBND` 相关说明：
+
+- 不再通过仓库变量手工配置下载地址或 SHA256
+- workflow 每次运行时都会读取 upstream 最新 release：
+  - upstream repo: `ividyon/WitchyBND`
+  - 资产筛选规则：`*-win-x64.zip`
+- 若最新 release 缺少该资产，或缺少 `sha256:` digest，workflow 直接 fail-closed
 
 ## 5. 手动触发 release
 
@@ -120,7 +119,7 @@
 通过条件：
 
 - `ENABLE_RELEASE=false` 时，workflow summary 明确提示 `release disabled`
-- `ENABLE_RELEASE=true` 且 sidecar URL 可用时：
+- `ENABLE_RELEASE=true` 且 upstream 最新 WitchyBND 资产可解析时：
   - preflight 成功
   - `scripts/package_native_windows.ps1` 成功
   - `scripts/smoke_test_portable.ps1` 成功
@@ -134,3 +133,4 @@
 - 当前阶段默认只开启 CI
 - 默认不自动对 tag 发布产物，除非显式打开 `ENABLE_RELEASE`
 - `WitchyBND` sidecar 的长期策略是外部下载与独立更新，不进入仓库版本控制
+- 每次 release preflight / release 都以 upstream 最新 `win-x64.zip` 为准，而不是仓库内固定 URL
