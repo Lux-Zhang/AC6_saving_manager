@@ -5,8 +5,12 @@
 #include <QGridLayout>
 #include <QHeaderView>
 #include <QHBoxLayout>
+#include <QImage>
 #include <QKeyEvent>
+#include <QPainter>
+#include <QPixmap>
 #include <QScrollArea>
+#include <QSizePolicy>
 #include <QSplitter>
 #include <QStyle>
 #include <QTableWidgetItem>
@@ -104,36 +108,145 @@ QString genericEmptyStateText(const bool hasRealSave, const bool hasItems, const
     return {};
 }
 
+struct PreviewSlotDefinition final {
+    const char* slotKey;
+    const char* slotLabel;
+    const char* groupTitle;
+};
+
+constexpr std::array<PreviewSlotDefinition, 12> kPreviewSlotDefinitions{{
+    {"rightArm", "R-ARM UNIT", "UNIT"},
+    {"leftArm", "L-ARM UNIT", "UNIT"},
+    {"rightBack", "R-BACK UNIT", "UNIT"},
+    {"leftBack", "L-BACK UNIT", "UNIT"},
+    {"head", "HEAD", "FRAME"},
+    {"core", "CORE", "FRAME"},
+    {"arms", "ARMS", "FRAME"},
+    {"legs", "LEGS", "FRAME"},
+    {"booster", "BOOSTER", "INNER"},
+    {"fcs", "FCS", "INNER"},
+    {"generator", "GENERATOR", "INNER"},
+    {"expansion", "EXPANSION", "EXPANSION"},
+}};
+
+constexpr QSize kManufacturerLogoCanvasSize{92, 44};
+constexpr int kManufacturerLogoTargetWidth = 58;
+constexpr int kManufacturerLogoRightPadding = 1;
+
+QString groupObjectName(const QString& groupTitle) {
+    return QStringLiteral("acPreviewGroup%1").arg(groupTitle);
+}
+
+QPixmap trimTransparentMargins(const QPixmap& pixmap) {
+    if (pixmap.isNull()) {
+        return pixmap;
+    }
+    const QImage image = pixmap.toImage().convertToFormat(QImage::Format_ARGB32_Premultiplied);
+    if (!image.hasAlphaChannel()) {
+        return pixmap;
+    }
+
+    int left = image.width();
+    int right = -1;
+    int top = image.height();
+    int bottom = -1;
+    for (int y = 0; y < image.height(); ++y) {
+        const auto* scanLine = reinterpret_cast<const QRgb*>(image.constScanLine(y));
+        for (int x = 0; x < image.width(); ++x) {
+            if (qAlpha(scanLine[x]) == 0) {
+                continue;
+            }
+            left = std::min(left, x);
+            right = std::max(right, x);
+            top = std::min(top, y);
+            bottom = std::max(bottom, y);
+        }
+    }
+
+    if (right < left || bottom < top) {
+        return pixmap;
+    }
+
+    return QPixmap::fromImage(image.copy(left, top, right - left + 1, bottom - top + 1));
+}
+
+QPixmap renderManufacturerLogo(const QPixmap& pixmap) {
+    const QPixmap trimmed = trimTransparentMargins(pixmap);
+    if (trimmed.isNull()) {
+        return {};
+    }
+
+    const qreal widthRatio = static_cast<qreal>(kManufacturerLogoTargetWidth) / static_cast<qreal>(trimmed.width());
+    const qreal heightRatio = static_cast<qreal>(kManufacturerLogoCanvasSize.height()) / static_cast<qreal>(trimmed.height());
+    const qreal canvasWidthRatio = static_cast<qreal>(kManufacturerLogoCanvasSize.width()) / static_cast<qreal>(trimmed.width());
+    const qreal scaleFactor = std::min({widthRatio, heightRatio, canvasWidthRatio});
+    const QSize scaledSize(
+        std::max(1, qRound(static_cast<qreal>(trimmed.width()) * scaleFactor)),
+        std::max(1, qRound(static_cast<qreal>(trimmed.height()) * scaleFactor)));
+
+    QPixmap canvas(kManufacturerLogoCanvasSize);
+    canvas.fill(Qt::transparent);
+
+    const QPixmap scaled = trimmed.scaled(scaledSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    const qreal targetCenterX = static_cast<qreal>(kManufacturerLogoCanvasSize.width())
+        - static_cast<qreal>(kManufacturerLogoRightPadding)
+        - (static_cast<qreal>(kManufacturerLogoTargetWidth) / 2.0);
+    const QPoint topLeft(
+        std::clamp(
+            qRound(targetCenterX - (static_cast<qreal>(scaled.width()) / 2.0)),
+            0,
+            kManufacturerLogoCanvasSize.width() - scaled.width()),
+        (kManufacturerLogoCanvasSize.height() - scaled.height()) / 2);
+
+    QPainter painter(&canvas);
+    painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
+    painter.drawPixmap(topLeft, scaled);
+    return canvas;
+}
+
 }  // namespace
 
 HomeLibraryView::HomeLibraryView(QWidget* parent) : QWidget(parent) {
     auto* layout = new QVBoxLayout(this);
-    layout->setContentsMargins(16, 16, 16, 16);
-    layout->setSpacing(12);
+    layout->setContentsMargins(10, 10, 10, 10);
+    layout->setSpacing(8);
 
     sessionCard_ = new QFrame(this);
     sessionCard_->setObjectName("sessionStatusCard");
+    sessionCard_->setMinimumHeight(82);
     auto* sessionLayout = new QHBoxLayout(sessionCard_);
-    sessionLayout->setContentsMargins(14, 12, 14, 12);
-    sessionLayout->setSpacing(16);
+    sessionLayout->setContentsMargins(12, 4, 12, 4);
+    sessionLayout->setSpacing(12);
 
     auto* sessionGrid = new QGridLayout();
-    sessionGrid->setHorizontalSpacing(12);
-    sessionGrid->setVerticalSpacing(6);
-    sessionGrid->addWidget(new QLabel(tr("Status"), sessionCard_), 0, 0);
+    sessionGrid->setHorizontalSpacing(10);
+    sessionGrid->setVerticalSpacing(2);
+    sessionGrid->setColumnStretch(0, 0);
+    sessionGrid->setColumnStretch(1, 1);
+    sessionGrid->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    auto* statusLabel = new QLabel(tr("Status"), sessionCard_);
+    statusLabel->setProperty("sessionMetricLabel", true);
+    sessionGrid->addWidget(statusLabel, 0, 0);
     sessionStateValueLabel_ = new QLabel(tr("No save opened"), sessionCard_);
     sessionStateValueLabel_->setObjectName("sessionStateValueLabel");
+    sessionStateValueLabel_->setWordWrap(false);
     sessionGrid->addWidget(sessionStateValueLabel_, 0, 1);
-    sessionGrid->addWidget(new QLabel(tr("Opened save"), sessionCard_), 1, 0);
+    auto* openedSaveLabel = new QLabel(tr("Opened save"), sessionCard_);
+    openedSaveLabel->setProperty("sessionMetricLabel", true);
+    sessionGrid->addWidget(openedSaveLabel, 1, 0);
     currentSaveValueLabel_ = new QLabel(tr("None"), sessionCard_);
     currentSaveValueLabel_->setObjectName("currentSaveValueLabel");
+    currentSaveValueLabel_->setWordWrap(false);
     sessionGrid->addWidget(currentSaveValueLabel_, 1, 1);
-    sessionGrid->addWidget(new QLabel(tr("Last action"), sessionCard_), 2, 0);
+    auto* lastActionLabel = new QLabel(tr("Last action"), sessionCard_);
+    lastActionLabel->setProperty("sessionMetricLabel", true);
+    sessionGrid->addWidget(lastActionLabel, 2, 0);
     lastActionValueLabel_ = new QLabel(lastActionSummary_, sessionCard_);
     lastActionValueLabel_->setObjectName("lastActionValueLabel");
-    lastActionValueLabel_->setWordWrap(true);
+    lastActionValueLabel_->setWordWrap(false);
     sessionGrid->addWidget(lastActionValueLabel_, 2, 1);
-    sessionLayout->addLayout(sessionGrid, 1);
+    sessionLayout->addLayout(sessionGrid, 0);
+    sessionLayout->addStretch(1);
 
     openSaveButton_ = new QPushButton(tr("Open Save"), sessionCard_);
     openSaveButton_->setObjectName("openSaveButton");
@@ -218,15 +331,17 @@ void HomeLibraryView::initializeTab(LibraryKind kind, QWidget* page, const QStri
     widgets.helperText = helperText;
 
     auto* pageLayout = new QVBoxLayout(page);
-    pageLayout->setContentsMargins(10, 10, 10, 10);
-    pageLayout->setSpacing(10);
+    pageLayout->setContentsMargins(6, 6, 6, 6);
+    pageLayout->setSpacing(6);
 
     auto* toolbarLayout = new QHBoxLayout();
-    toolbarLayout->setSpacing(8);
+    toolbarLayout->setSpacing(6);
     widgets.filterEdit = new QLineEdit(page);
     widgets.filterEdit->setObjectName(filterObjectName);
     widgets.filterEdit->setPlaceholderText(tr("Search name, share code, slot or origin"));
-    toolbarLayout->addWidget(widgets.filterEdit, 1);
+    widgets.filterEdit->setMinimumWidth(kind == LibraryKind::Ac ? 420 : 360);
+    widgets.filterEdit->setMaximumWidth(kind == LibraryKind::Ac ? 620 : 520);
+    toolbarLayout->addWidget(widgets.filterEdit, 0);
 
     widgets.sourceFilterCombo = new QComboBox(page);
     widgets.sourceFilterCombo->setObjectName(filterComboObjectName);
@@ -236,7 +351,8 @@ void HomeLibraryView::initializeTab(LibraryKind kind, QWidget* page, const QStri
     widgets.sourceFilterCombo->addItem(tr("User 3"), QString::fromStdString(contracts::toString(contracts::SourceBucket::User3)));
     widgets.sourceFilterCombo->addItem(tr("User 4"), QString::fromStdString(contracts::toString(contracts::SourceBucket::User4)));
     widgets.sourceFilterCombo->addItem(tr("Share"), QString::fromStdString(contracts::toString(contracts::SourceBucket::Share)));
-    toolbarLayout->addWidget(widgets.sourceFilterCombo);
+    widgets.sourceFilterCombo->setMinimumWidth(138);
+    toolbarLayout->addWidget(widgets.sourceFilterCombo, 0);
 
     widgets.primaryActionButton = new QPushButton(actionText, page);
     widgets.primaryActionButton->setObjectName(primaryButtonObjectName);
@@ -247,12 +363,10 @@ void HomeLibraryView::initializeTab(LibraryKind kind, QWidget* page, const QStri
     toolbarLayout->addWidget(widgets.primaryActionButton);
     toolbarLayout->addWidget(widgets.importFileButton);
     toolbarLayout->addWidget(widgets.exportButton);
+    toolbarLayout->addStretch(1);
     pageLayout->addLayout(toolbarLayout);
 
-    auto* contentSplitter = new QSplitter(Qt::Horizontal, page);
-    contentSplitter->setChildrenCollapsible(false);
-
-    auto* leftPanel = new QWidget(contentSplitter);
+    auto* leftPanel = new QWidget(page);
     auto* leftLayout = new QVBoxLayout(leftPanel);
     leftLayout->setContentsMargins(0, 0, 0, 0);
     leftLayout->setSpacing(8);
@@ -279,6 +393,16 @@ void HomeLibraryView::initializeTab(LibraryKind kind, QWidget* page, const QStri
     widgets.table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     widgets.table->setWordWrap(false);
     widgets.table->setSortingEnabled(true);
+    widgets.table->verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
+    widgets.table->verticalHeader()->setDefaultSectionSize(kind == LibraryKind::Ac ? 34 : 32);
+    widgets.table->verticalHeader()->setMinimumSectionSize(kind == LibraryKind::Ac ? 34 : 32);
+    widgets.table->verticalHeader()->setDefaultAlignment(Qt::AlignCenter);
+    widgets.table->verticalHeader()->setFixedWidth(46);
+    if (kind == LibraryKind::Ac) {
+        auto* header = widgets.table->horizontalHeader();
+        header->setSectionResizeMode(QHeaderView::Stretch);
+        widgets.table->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    }
     widgets.table->installEventFilter(this);
     leftLayout->addWidget(widgets.table, 1);
 
@@ -288,14 +412,41 @@ void HomeLibraryView::initializeTab(LibraryKind kind, QWidget* page, const QStri
     widgets.helperTextLabel->setWordWrap(true);
     leftLayout->addWidget(widgets.helperTextLabel);
 
-    auto* rightPanel = new QWidget(contentSplitter);
-    configureInspector(kind, rightPanel, widgets);
+    if (kind == LibraryKind::Ac) {
+        auto* inspectorPanel = new QWidget(leftPanel);
+        configureInspector(kind, inspectorPanel, widgets);
+        inspectorPanel->setObjectName(QStringLiteral("acInspectorPanel"));
+        inspectorPanel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
+        inspectorPanel->setMinimumHeight(184);
+        inspectorPanel->setMaximumHeight(232);
+        leftLayout->insertWidget(1, inspectorPanel, 0);
 
-    contentSplitter->addWidget(leftPanel);
-    contentSplitter->addWidget(rightPanel);
-    contentSplitter->setStretchFactor(0, 3);
-    contentSplitter->setStretchFactor(1, 2);
-    pageLayout->addWidget(contentSplitter, 1);
+        auto* previewPanel = new QWidget(page);
+        configureAcPreviewPanel(previewPanel, widgets);
+        leftPanel->setMinimumWidth(0);
+        leftPanel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+        previewPanel->setFixedWidth(336);
+        previewPanel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
+
+        auto* contentSplitter = new QSplitter(Qt::Horizontal, page);
+        contentSplitter->setChildrenCollapsible(false);
+        contentSplitter->addWidget(leftPanel);
+        contentSplitter->addWidget(previewPanel);
+        contentSplitter->setStretchFactor(0, 1);
+        contentSplitter->setStretchFactor(1, 0);
+        contentSplitter->setSizes({660, 336});
+        pageLayout->addWidget(contentSplitter, 1);
+    } else {
+        auto* rightPanel = new QWidget(page);
+        configureInspector(kind, rightPanel, widgets);
+        auto* contentSplitter = new QSplitter(Qt::Horizontal, page);
+        contentSplitter->setChildrenCollapsible(false);
+        contentSplitter->addWidget(leftPanel);
+        contentSplitter->addWidget(rightPanel);
+        contentSplitter->setStretchFactor(0, 3);
+        contentSplitter->setStretchFactor(1, 2);
+        pageLayout->addWidget(contentSplitter, 1);
+    }
 
     connect(widgets.filterEdit, &QLineEdit::textChanged, this, &HomeLibraryView::handleFilterChanged);
     connect(widgets.sourceFilterCombo, qOverload<int>(&QComboBox::currentIndexChanged), this,
@@ -310,12 +461,15 @@ void HomeLibraryView::initializeTab(LibraryKind kind, QWidget* page, const QStri
     connect(widgets.primaryActionButton, &QPushButton::clicked, this, &HomeLibraryView::primaryActionRequested);
     connect(widgets.importFileButton, &QPushButton::clicked, this, &HomeLibraryView::importFileRequested);
     connect(widgets.exportButton, &QPushButton::clicked, this, &HomeLibraryView::exportSelectedRequested);
+    if (widgets.createBuildLinkButton != nullptr) {
+        connect(widgets.createBuildLinkButton, &QPushButton::clicked, this, &HomeLibraryView::createBuildLinkRequested);
+    }
 }
 
 void HomeLibraryView::configureInspector(LibraryKind kind, QWidget* parent, LibraryWidgets& widgets) {
     auto* layout = new QVBoxLayout(parent);
     layout->setContentsMargins(0, 0, 0, 0);
-    layout->setSpacing(8);
+    layout->setSpacing(6);
 
     widgets.inspectorTitleLabel = new QLabel(widgets.selectionPromptText, parent);
     widgets.inspectorTitleLabel->setObjectName(kind == LibraryKind::Emblem
@@ -330,7 +484,7 @@ void HomeLibraryView::configureInspector(LibraryKind kind, QWidget* parent, Libr
     auto* scrollContent = new QWidget(scrollArea);
     auto* scrollLayout = new QVBoxLayout(scrollContent);
     scrollLayout->setContentsMargins(0, 0, 0, 0);
-    scrollLayout->setSpacing(10);
+    scrollLayout->setSpacing(8);
 
     widgets.inspectorPlaceholderLabel = new QLabel(widgets.selectionPromptText, scrollContent);
     widgets.inspectorPlaceholderLabel->setObjectName(kind == LibraryKind::Emblem
@@ -342,6 +496,10 @@ void HomeLibraryView::configureInspector(LibraryKind kind, QWidget* parent, Libr
 
     widgets.identityGroup = new QGroupBox(tr("Identity"), scrollContent);
     auto* identityLayout = new QFormLayout(widgets.identityGroup);
+    identityLayout->setContentsMargins(8, 8, 8, 8);
+    identityLayout->setHorizontalSpacing(8);
+    identityLayout->setVerticalSpacing(4);
+    identityLayout->setLabelAlignment(Qt::AlignLeft | Qt::AlignTop);
     widgets.identityField1Label = new QLabel(kind == LibraryKind::Emblem ? tr("Name / Share code") : tr("Archive"), widgets.identityGroup);
     widgets.identityField1Value = new QLabel(tr("-"), widgets.identityGroup);
     widgets.identityField1Value->setWordWrap(true);
@@ -354,22 +512,27 @@ void HomeLibraryView::configureInspector(LibraryKind kind, QWidget* parent, Libr
     widgets.identityField3Value = new QLabel(tr("-"), widgets.identityGroup);
     widgets.identityField3Value->setWordWrap(true);
     identityLayout->addRow(widgets.identityField3Label, widgets.identityField3Value);
-    scrollLayout->addWidget(widgets.identityGroup);
-
     if (kind == LibraryKind::Ac) {
         widgets.locationGroup = new QGroupBox(tr("Location"), scrollContent);
         auto* locationLayout = new QFormLayout(widgets.locationGroup);
+        locationLayout->setContentsMargins(8, 8, 8, 8);
+        locationLayout->setHorizontalSpacing(8);
+        locationLayout->setVerticalSpacing(4);
+        locationLayout->setLabelAlignment(Qt::AlignLeft | Qt::AlignTop);
         widgets.locationOriginValue = new QLabel(tr("-"), widgets.locationGroup);
         widgets.locationOriginValue->setWordWrap(true);
         widgets.locationSlotValue = new QLabel(tr("-"), widgets.locationGroup);
         widgets.locationSlotValue->setWordWrap(true);
         locationLayout->addRow(tr("Origin"), widgets.locationOriginValue);
         locationLayout->addRow(tr("Slot"), widgets.locationSlotValue);
-        scrollLayout->addWidget(widgets.locationGroup);
     }
 
     widgets.statusGroup = new QGroupBox(tr("Write status"), scrollContent);
     auto* statusLayout = new QFormLayout(widgets.statusGroup);
+    statusLayout->setContentsMargins(8, 8, 8, 8);
+    statusLayout->setHorizontalSpacing(8);
+    statusLayout->setVerticalSpacing(4);
+    statusLayout->setLabelAlignment(Qt::AlignLeft | Qt::AlignTop);
     widgets.statusBadgeLabel = new QLabel(tr("Read-only"), widgets.statusGroup);
     widgets.statusBadgeLabel->setObjectName(kind == LibraryKind::Emblem
             ? QStringLiteral("emblemStatusBadgeLabel")
@@ -382,30 +545,129 @@ void HomeLibraryView::configureInspector(LibraryKind kind, QWidget* parent, Libr
     widgets.previewValueLabel = new QLabel(tr("Hidden in this build"), widgets.statusGroup);
     widgets.previewValueLabel->setProperty("secondaryText", true);
     widgets.previewValueLabel->setWordWrap(true);
-    statusLayout->addRow(tr("Preview"), widgets.previewValueLabel);
-    scrollLayout->addWidget(widgets.statusGroup);
+    if (kind == LibraryKind::Emblem) {
+        statusLayout->addRow(tr("Preview"), widgets.previewValueLabel);
+    } else {
+        widgets.previewValueLabel->setVisible(false);
+    }
+    if (kind == LibraryKind::Ac) {
+        auto* summaryRow = new QWidget(scrollContent);
+        auto* summaryLayout = new QHBoxLayout(summaryRow);
+        summaryLayout->setContentsMargins(0, 0, 0, 0);
+        summaryLayout->setSpacing(8);
 
-    widgets.technicalToggleButton = new QToolButton(scrollContent);
-    widgets.technicalToggleButton->setCheckable(true);
-    widgets.technicalToggleButton->setToolButtonStyle(Qt::ToolButtonTextOnly);
-    widgets.technicalToggleButton->setText(tr("Show technical details"));
-    scrollLayout->addWidget(widgets.technicalToggleButton);
+        widgets.identityGroup->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        widgets.locationGroup->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        widgets.statusGroup->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
-    widgets.technicalText = new QPlainTextEdit(scrollContent);
-    widgets.technicalText->setReadOnly(true);
-    widgets.technicalText->setObjectName(kind == LibraryKind::Emblem
-            ? QStringLiteral("emblemTechnicalDetailsText")
-            : QStringLiteral("acTechnicalDetailsText"));
-    scrollLayout->addWidget(widgets.technicalText);
+        summaryLayout->addWidget(widgets.identityGroup, 5);
+        summaryLayout->addWidget(widgets.locationGroup, 3);
+        summaryLayout->addWidget(widgets.statusGroup, 4);
+        scrollLayout->addWidget(summaryRow);
+    } else {
+        scrollLayout->addWidget(widgets.identityGroup);
+        scrollLayout->addWidget(widgets.statusGroup);
+    }
+
     scrollLayout->addStretch(1);
 
     scrollArea->setWidget(scrollContent);
     layout->addWidget(scrollArea, 1);
+}
 
-    connect(widgets.technicalToggleButton, &QToolButton::toggled, this, [this, &widgets](const bool checked) {
-        setTechnicalDetailsExpanded(widgets, checked);
-    });
-    setTechnicalDetailsExpanded(widgets, false);
+void HomeLibraryView::configureAcPreviewPanel(QWidget* parent, LibraryWidgets& widgets) {
+    widgets.previewPanel = parent;
+    parent->setObjectName(QStringLiteral("acPreviewPanel"));
+    auto* layout = new QVBoxLayout(parent);
+    layout->setContentsMargins(6, 2, 0, 0);
+    layout->setSpacing(6);
+
+    auto* titleLabel = new QLabel(tr("AC Component Preview"), parent);
+    titleLabel->setObjectName(QStringLiteral("acPreviewTitleLabel"));
+    layout->addWidget(titleLabel);
+
+    widgets.previewEmptyStateLabel = new QLabel(tr("Select an AC to inspect the current assembly preview."), parent);
+    widgets.previewEmptyStateLabel->setObjectName(QStringLiteral("acPreviewEmptyStateLabel"));
+    widgets.previewEmptyStateLabel->setProperty("emptyState", true);
+    widgets.previewEmptyStateLabel->setWordWrap(true);
+    layout->addWidget(widgets.previewEmptyStateLabel);
+
+    widgets.previewScrollArea = nullptr;
+    widgets.previewScrollContent = new QWidget(parent);
+    widgets.previewScrollContent->setObjectName(QStringLiteral("acPreviewContent"));
+    auto* contentLayout = new QVBoxLayout(widgets.previewScrollContent);
+    contentLayout->setContentsMargins(0, 0, 0, 0);
+    contentLayout->setSpacing(8);
+
+    QString currentGroupTitle;
+    QVBoxLayout* currentGroupLayout = nullptr;
+    int groupIndex = -1;
+    for (std::size_t index = 0; index < kPreviewSlotDefinitions.size(); ++index) {
+        const auto& definition = kPreviewSlotDefinitions[index];
+        const QString groupTitle = QString::fromLatin1(definition.groupTitle);
+        if (groupTitle != currentGroupTitle) {
+            currentGroupTitle = groupTitle;
+            ++groupIndex;
+            widgets.previewGroups[static_cast<std::size_t>(groupIndex)] = new QGroupBox(groupTitle, widgets.previewScrollContent);
+            widgets.previewGroups[static_cast<std::size_t>(groupIndex)]->setObjectName(groupObjectName(groupTitle));
+            currentGroupLayout = new QVBoxLayout(widgets.previewGroups[static_cast<std::size_t>(groupIndex)]);
+            currentGroupLayout->setContentsMargins(4, 3, 4, 4);
+            currentGroupLayout->setSpacing(3);
+            contentLayout->addWidget(widgets.previewGroups[static_cast<std::size_t>(groupIndex)]);
+        }
+
+        auto& row = widgets.previewRows[index];
+        row.container = new QWidget(widgets.previewGroups[static_cast<std::size_t>(groupIndex)]);
+        row.container->setObjectName(QStringLiteral("acPreviewRow_%1").arg(QString::fromLatin1(definition.slotKey)));
+        row.container->setMinimumHeight(56);
+        row.container->setMaximumHeight(56);
+        auto* rowLayout = new QHBoxLayout(row.container);
+        rowLayout->setContentsMargins(6, 5, 6, 5);
+        rowLayout->setSpacing(8);
+
+        row.iconLabel = new QLabel(row.container);
+        row.iconLabel->setObjectName(QStringLiteral("acPreviewIcon_%1").arg(QString::fromLatin1(definition.slotKey)));
+        row.iconLabel->setFixedSize(38, 38);
+        row.iconLabel->setScaledContents(false);
+        row.iconLabel->setAlignment(Qt::AlignCenter);
+        rowLayout->addWidget(row.iconLabel, 0, Qt::AlignTop);
+
+        auto* textLayout = new QVBoxLayout();
+        textLayout->setContentsMargins(0, 0, 0, 0);
+        textLayout->setSpacing(2);
+        row.slotLabel = new QLabel(QString::fromLatin1(definition.slotLabel), row.container);
+        row.slotLabel->setObjectName(QStringLiteral("acPreviewSlotLabel_%1").arg(QString::fromLatin1(definition.slotKey)));
+        row.slotLabel->setProperty("previewSlotLabel", true);
+        textLayout->addWidget(row.slotLabel);
+        row.partLabel = new QLabel(tr("(UNRESOLVED)"), row.container);
+        row.partLabel->setObjectName(QStringLiteral("acPreviewPartLabel_%1").arg(QString::fromLatin1(definition.slotKey)));
+        row.partLabel->setProperty("previewPartLabel", true);
+        row.partLabel->setWordWrap(false);
+        textLayout->addWidget(row.partLabel);
+        rowLayout->addLayout(textLayout, 1);
+
+        row.manufacturerLogoLabel = new QLabel(row.container);
+        row.manufacturerLogoLabel->setObjectName(QStringLiteral("acPreviewManufacturer_%1").arg(QString::fromLatin1(definition.slotKey)));
+        row.manufacturerLogoLabel->setMinimumSize(kManufacturerLogoCanvasSize);
+        row.manufacturerLogoLabel->setMaximumSize(kManufacturerLogoCanvasSize);
+        row.manufacturerLogoLabel->setScaledContents(false);
+        row.manufacturerLogoLabel->setAlignment(Qt::AlignCenter);
+        rowLayout->addWidget(row.manufacturerLogoLabel, 0, Qt::AlignRight | Qt::AlignVCenter);
+
+        currentGroupLayout->addWidget(row.container);
+    }
+
+    layout->addWidget(widgets.previewScrollContent, 1);
+
+    widgets.previewNoteLabel = new QLabel(parent);
+    widgets.previewNoteLabel->setObjectName(QStringLiteral("acPreviewNoteLabel"));
+    widgets.previewNoteLabel->setProperty("secondaryText", true);
+    widgets.previewNoteLabel->setWordWrap(true);
+    layout->addWidget(widgets.previewNoteLabel);
+
+    widgets.createBuildLinkButton = new QPushButton(tr("CREATE BUILD LINK"), parent);
+    widgets.createBuildLinkButton->setObjectName(QStringLiteral("acCreateBuildLinkButton"));
+    layout->addWidget(widgets.createBuildLinkButton);
 }
 
 void HomeLibraryView::setCatalog(const std::vector<contracts::CatalogItemDto>& items) {
@@ -414,6 +676,20 @@ void HomeLibraryView::setCatalog(const std::vector<contracts::CatalogItemDto>& i
 
 void HomeLibraryView::setAcCatalog(const std::vector<contracts::CatalogItemDto>& items) {
     setLibraryCatalog(LibraryKind::Ac, items);
+}
+
+void HomeLibraryView::setCurrentLibrary(const contracts::AssetKind assetKind) {
+    libraryTabs_->setCurrentIndex(assetKind == contracts::AssetKind::Ac ? 1 : 0);
+}
+
+bool HomeLibraryView::selectVisibleRow(const contracts::AssetKind assetKind, const int row) {
+    auto& widgets = widgetsFor(assetKind == contracts::AssetKind::Ac ? LibraryKind::Ac : LibraryKind::Emblem);
+    if (row < 0 || row >= widgets.table->rowCount()) {
+        return false;
+    }
+    widgets.table->setCurrentCell(row, 0);
+    widgets.table->selectRow(row);
+    return true;
 }
 
 void HomeLibraryView::setLibraryCatalog(LibraryKind kind, const std::vector<contracts::CatalogItemDto>& items) {
@@ -561,10 +837,9 @@ void HomeLibraryView::showItemDetails(LibraryKind kind, const std::optional<cont
             widgets.locationGroup->setVisible(false);
         }
         widgets.statusGroup->setVisible(false);
-        widgets.technicalToggleButton->setVisible(false);
-        widgets.technicalText->setVisible(false);
-        widgets.technicalText->clear();
-        setTechnicalDetailsExpanded(widgets, false);
+        if (kind == LibraryKind::Ac) {
+            showAcPreview(std::nullopt);
+        }
         return;
     }
 
@@ -572,7 +847,6 @@ void HomeLibraryView::showItemDetails(LibraryKind kind, const std::optional<cont
     widgets.inspectorPlaceholderLabel->setVisible(false);
     widgets.identityGroup->setVisible(true);
     widgets.statusGroup->setVisible(true);
-    widgets.technicalToggleButton->setVisible(true);
 
     if (kind == LibraryKind::Emblem) {
         widgets.identityField1Label->setText(tr("Name / Share code"));
@@ -600,23 +874,90 @@ void HomeLibraryView::showItemDetails(LibraryKind kind, const std::optional<cont
 
     updateStatusBadge(widgets.statusBadgeLabel, writeCapabilityLabel(*item), badgeStateForCapability(item->writeCapability));
     widgets.statusNoteLabel->setText(statusNoteText(*item));
-    widgets.previewValueLabel->setText(tr("Hidden in this build"));
+    widgets.previewValueLabel->setText(kind == LibraryKind::Ac
+            ? tr("Shown in the preview panel")
+            : tr("Hidden in this build"));
+    if (kind == LibraryKind::Ac) {
+        showAcPreview(item);
+    }
+}
 
-    QStringList lines;
-    lines << tr("Description: %1").arg(QString::fromStdString(item->description));
-    if (!item->tags.empty()) {
-        QStringList tags;
-        for (const auto& tag : item->tags) {
-            tags << QString::fromStdString(tag);
+void HomeLibraryView::showAcPreview(const std::optional<contracts::CatalogItemDto>& item) {
+    auto& widgets = acWidgets_;
+    if (widgets.previewPanel == nullptr) {
+        return;
+    }
+
+    const auto setScaledPixmap = [](QLabel* label, const QPixmap& pixmap, const bool trimAlpha = false,
+                                     const bool manufacturerLogo = false) {
+        if (label == nullptr) {
+            return;
         }
-        lines << tr("Tags: %1").arg(tags.join(", "));
+        if (pixmap.isNull()) {
+            label->setPixmap(QPixmap());
+            return;
+        }
+        if (manufacturerLogo) {
+            label->setPixmap(renderManufacturerLogo(pixmap));
+            return;
+        }
+        const QPixmap source = trimAlpha ? trimTransparentMargins(pixmap) : pixmap;
+        label->setPixmap(source.scaled(label->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    };
+
+    const auto setRow = [&](const std::size_t index, const contracts::AcAssemblySlotDto* slot) {
+        auto& row = widgets.previewRows[index];
+        const auto& definition = kPreviewSlotDefinitions[index];
+        row.slotLabel->setText(slot != nullptr
+                ? QString::fromStdString(slot->slotLabel)
+                : QString::fromLatin1(definition.slotLabel));
+        row.partLabel->setText(slot == nullptr ? tr("(UNRESOLVED)") : previewPartText(*slot));
+        row.partLabel->setProperty(
+            "previewState",
+            slot == nullptr ? "unresolved" : (slot->hasMatch ? "resolved" : "unresolved"));
+        row.partLabel->style()->unpolish(row.partLabel);
+        row.partLabel->style()->polish(row.partLabel);
+
+        const QString iconPath = QStringLiteral(":/advanced_garage/images/slots/%1.png")
+                                     .arg(QString::fromLatin1(definition.slotKey));
+        setScaledPixmap(row.iconLabel, QPixmap(iconPath));
+
+        if (slot != nullptr) {
+            const QString manufacturerPath = previewManufacturerResource(slot->manufacturer);
+            if (!manufacturerPath.isEmpty()) {
+                setScaledPixmap(row.manufacturerLogoLabel, QPixmap(manufacturerPath), false, true);
+            } else {
+                row.manufacturerLogoLabel->setPixmap(QPixmap());
+            }
+        } else {
+            row.manufacturerLogoLabel->setPixmap(QPixmap());
+        }
+    };
+
+    if (!item.has_value() || !item->acPreview.has_value()) {
+        widgets.previewEmptyStateLabel->setVisible(true);
+        widgets.previewScrollContent->setVisible(false);
+        widgets.previewNoteLabel->setText(
+            item.has_value()
+                ? tr("This AC record does not expose an Advanced Garage preview in the current build.")
+                : tr("Select an AC to inspect the current assembly preview."));
+        widgets.previewNoteLabel->setVisible(true);
+        widgets.createBuildLinkButton->setEnabled(false);
+        for (std::size_t index = 0; index < widgets.previewRows.size(); ++index) {
+            setRow(index, nullptr);
+        }
+        return;
     }
-    for (const auto& field : item->detailFields) {
-        lines << QString::fromStdString(field.label + ": " + field.value);
-    }
-    widgets.technicalText->setPlainText(lines.join("\n"));
-    if (!widgets.technicalToggleButton->isChecked()) {
-        widgets.technicalText->setVisible(false);
+
+    const auto& preview = *item->acPreview;
+    widgets.previewEmptyStateLabel->setVisible(false);
+    widgets.previewScrollContent->setVisible(true);
+    widgets.previewNoteLabel->setText(preview.buildLinkCompatible ? QString() : tr("Preview mapping is still incomplete for this AC."));
+    widgets.previewNoteLabel->setVisible(!widgets.previewNoteLabel->text().isEmpty());
+    widgets.createBuildLinkButton->setEnabled(preview.buildLinkCompatible);
+
+    for (std::size_t index = 0; index < preview.assemblySlots.size(); ++index) {
+        setRow(index, &preview.assemblySlots[index]);
     }
 }
 
@@ -629,10 +970,22 @@ void HomeLibraryView::updateActionState(LibraryKind kind, const std::optional<co
     const bool canImportAc = kind == LibraryKind::Ac && hasItem && isShareOrigin(*item) && sessionHasRealSave_;
     const bool canImportAcFile = kind == LibraryKind::Ac && sessionHasRealSave_;
     const bool canExportAc = kind == LibraryKind::Ac && hasItem;
+    const auto hasCompatiblePreview = hasItem
+        && item->acPreview.has_value()
+        && item->acPreview->buildLinkCompatible;
+    const bool canCreateBuildLink = kind == LibraryKind::Ac
+        && hasCompatiblePreview;
 
     widgets.primaryActionButton->setEnabled(kind == LibraryKind::Emblem ? canImportEmblem : canImportAc);
     widgets.importFileButton->setEnabled(kind == LibraryKind::Emblem ? canImportEmblemFile : canImportAcFile);
     widgets.exportButton->setEnabled(kind == LibraryKind::Emblem ? canExportEmblem : canExportAc);
+    if (widgets.createBuildLinkButton != nullptr) {
+        widgets.createBuildLinkButton->setEnabled(canCreateBuildLink);
+        widgets.createBuildLinkButton->setToolTip(
+            canCreateBuildLink
+                ? QString()
+                : tr("Build link export stays disabled until all 12 Advanced Garage slots are resolved."));
+    }
 
     if (kind == LibraryKind::Emblem) {
         widgets.primaryActionButton->setToolTip(
@@ -730,6 +1083,23 @@ QString HomeLibraryView::detailTitleFor(LibraryKind kind, const contracts::Catal
     return QString::fromStdString(item.displayName);
 }
 
+QString HomeLibraryView::previewPartText(const contracts::AcAssemblySlotDto& slot) const {
+    if (slot.hasMatch) {
+        return QString::fromStdString(slot.partName);
+    }
+    return tr("(UNRESOLVED)");
+}
+
+QString HomeLibraryView::previewManufacturerResource(const std::string& manufacturer) const {
+    if (manufacturer.empty()) {
+        return {};
+    }
+
+    QString normalized = QString::fromStdString(manufacturer).toUpper();
+    normalized.replace(' ', '_');
+    return QStringLiteral(":/advanced_garage/images/manufacturers/%1.png").arg(normalized);
+}
+
 bool HomeLibraryView::itemMatchesSourceFilter(LibraryKind kind, const contracts::CatalogItemDto& item) const {
     const auto& widgets = widgetsFor(kind);
     const auto filterValue = widgets.sourceFilterCombo->currentData().toString();
@@ -766,12 +1136,6 @@ void HomeLibraryView::updateInlineStatusVisibility() {
     inlineStatusFrame_->style()->polish(inlineStatusFrame_);
     inlineStatusDetailsButton_->setVisible(visible && inlineStatusCanShowDetails_);
     inlineStatusDismissButton_->setVisible(visible);
-}
-
-void HomeLibraryView::setTechnicalDetailsExpanded(LibraryWidgets& widgets, const bool expanded) {
-    widgets.technicalToggleButton->setChecked(expanded);
-    widgets.technicalToggleButton->setText(expanded ? tr("Hide technical details") : tr("Show technical details"));
-    widgets.technicalText->setVisible(expanded);
 }
 
 bool HomeLibraryView::eventFilter(QObject* watched, QEvent* event) {

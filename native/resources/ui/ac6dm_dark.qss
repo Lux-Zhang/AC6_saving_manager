@@ -1,99 +1,152 @@
 QWidget {
-    background-color: #0f1722;
-    color: #e6eef7;
-    font-family: "Microsoft YaHei UI";
-    font-size: 12px;
+    background-color: #0d141e;
+    color: #edf4fa;
+    font-family: "Aldrich-Custom", "Aldrich Custom", "Aldrich", "Microsoft YaHei UI";
+    font-size: 14px;
+    selection-background-color: #546982;
+    selection-color: #ffffff;
 }
 
 QMainWindow {
-    background-color: #0b1320;
+    background-color: qradialgradient(cx:0.5, cy:0.35, radius:1.15, fx:0.5, fy:0.15,
+                                      stop:0 #243549, stop:0.55 #152131, stop:1 #0d141e);
+}
+
+QDialog,
+QMenu {
+    background-color: #101a27;
+}
+
+QLabel,
+QCheckBox,
+QRadioButton,
+QGroupBox {
+    background: transparent;
 }
 
 QFrame#sessionStatusCard,
 QFrame#inlineStatusFrame,
 QFrame#targetSlotSummaryFrame,
-QGroupBox {
-    background-color: #142031;
-    border: 1px solid #2b4156;
-    border-radius: 8px;
+QGroupBox,
+QWidget#acPreviewPanel,
+QWidget#acPreviewContent,
+QWidget#acPreviewRow_rightArm,
+QWidget#acPreviewRow_leftArm,
+QWidget#acPreviewRow_rightBack,
+QWidget#acPreviewRow_leftBack,
+QWidget#acPreviewRow_head,
+QWidget#acPreviewRow_core,
+QWidget#acPreviewRow_arms,
+QWidget#acPreviewRow_legs,
+QWidget#acPreviewRow_booster,
+QWidget#acPreviewRow_fcs,
+QWidget#acPreviewRow_generator,
+QWidget#acPreviewRow_expansion {
+    background-color: rgba(36, 53, 73, 0.92);
+    background-image: url(:/advanced_garage/images/ui/dot_grid.xpm);
+    border: 1px solid #6e7985;
+    border-radius: 1px;
 }
 
 QLabel#sessionStateValueLabel,
 QLabel#currentSaveValueLabel,
 QLabel#lastActionValueLabel,
-QLabel#saveResultSummaryLabel {
+QLabel#acPreviewTitleLabel {
     color: #ffffff;
 }
 
-QLabel[statusTone="error"] {
-    color: #ffd1d1;
+QLabel#sessionStateValueLabel,
+QLabel#currentSaveValueLabel,
+QLabel#lastActionValueLabel,
+QHeaderView::section,
+QPushButton,
+QTabBar::tab,
+QLabel[previewSlotLabel="true"] {
+    font-family: "AgencyFB", "Agency FB Bold", "Agency FB", "Aldrich-Custom";
+}
+
+QLabel#sessionStateValueLabel,
+QLabel#currentSaveValueLabel,
+QLabel#lastActionValueLabel {
+    font-size: 16px;
+}
+
+QLabel#acPreviewTitleLabel {
+    font-family: "AgencyFB", "Agency FB Bold", "Agency FB", "NHL", "Aldrich-Custom";
+    font-size: 23px;
+    letter-spacing: 2px;
+    padding: 4px 0 4px 10px;
+}
+
+QLabel[sessionMetricLabel="true"] {
+    color: #9eb4c5;
+    font-family: "AgencyFB", "Agency FB Bold", "Agency FB", "Aldrich-Custom";
+    font-size: 13px;
+    letter-spacing: 1px;
 }
 
 QLabel[emptyState="true"],
 QLabel[secondaryText="true"],
-QLabel#targetSlotIntroLabel,
-QLabel#targetSlotWarningLabel,
-QLabel#targetSlotBlockerLabel {
-    color: #a7bbcf;
+QLabel#targetSlotIntroLabel {
+    color: #9eb4c5;
 }
 
 QLabel#targetSlotWarningLabel,
 QLabel#targetSlotBlockerLabel {
     padding: 8px 10px;
-    border-radius: 6px;
-    border: 1px solid #2b4156;
-    background-color: #121b29;
+    border: 1px solid #6e7985;
+    background-color: rgba(13, 20, 30, 0.9);
+}
+
+QLabel#targetSlotWarningLabel {
+    color: #cfe0ea;
 }
 
 QLabel#targetSlotBlockerLabel {
     color: #ffd7d7;
-    border-color: #9b4a4a;
-    background-color: #271619;
+    border-color: #b35f5f;
+    background-color: rgba(52, 28, 33, 0.92);
 }
 
 QTabWidget::pane {
-    border: 1px solid #37506a;
-    background-color: #121b28;
+    border: 1px solid #4b5c74;
+    background-color: rgba(13, 20, 30, 0.9);
     top: -1px;
 }
 
 QTabBar::tab {
-    background-color: #1b2a3b;
-    color: #d8e6f4;
-    border: 1px solid #3b5873;
-    padding: 9px 18px;
+    background-color: rgba(61, 72, 94, 0.85);
+    border: 2px solid #0d141e;
+    padding: 6px 16px;
     margin-right: 4px;
-    border-top-left-radius: 6px;
-    border-top-right-radius: 6px;
+    color: #dde7ef;
+    letter-spacing: 1px;
 }
 
 QTabBar::tab:selected {
-    background-color: #3474b7;
+    background-color: #546982;
     color: #ffffff;
-    border-color: #89b7e5;
-    font-weight: 600;
 }
 
 QTabBar::tab:!selected:hover {
-    background-color: #25394d;
+    background-color: #435468;
 }
 
 QTabBar::tab:disabled {
-    background-color: #27384a;
-    color: #b7c6d4;
-    border-color: #4c6279;
+    background-color: #2b3645;
+    color: #7f95a8;
 }
 
 QLineEdit,
 QComboBox,
 QPlainTextEdit,
 QTableWidget,
-QScrollArea {
-    background-color: #111a27;
-    border: 1px solid #30475d;
-    border-radius: 6px;
-    selection-background-color: #2d6fb0;
-    selection-color: #ffffff;
+QScrollArea,
+QTreeView,
+QListView {
+    background-color: rgba(13, 20, 30, 0.92);
+    border: 1px solid #4b5c74;
+    border-radius: 1px;
 }
 
 QLineEdit,
@@ -103,127 +156,172 @@ QComboBox {
 }
 
 QComboBox::drop-down {
+    width: 26px;
     border: none;
-    width: 22px;
 }
 
-QComboBox QAbstractItemView {
-    background-color: #142031;
-    border: 1px solid #36516c;
-    selection-background-color: #3474b7;
+QComboBox QAbstractItemView,
+QFileDialog QAbstractItemView {
+    background-color: #243549;
+    border: 1px solid #6e7985;
+    selection-background-color: #546982;
     selection-color: #ffffff;
 }
 
+QLineEdit:focus,
+QComboBox:focus,
+QPushButton:focus,
+QTableWidget:focus,
+QPlainTextEdit:focus,
+QTreeView:focus,
+QListView:focus {
+    border: 2px solid #cceaf8;
+}
+
 QPushButton {
-    background-color: #2d6fb0;
-    border: 1px solid #5d96cf;
-    border-radius: 6px;
+    background-color: #546982;
+    border: 2px solid #0d141e;
+    border-radius: 1px;
     color: #ffffff;
-    padding: 7px 12px;
+    padding: 4px 12px;
+    min-height: 30px;
+    font-size: 14px;
+    letter-spacing: 1px;
 }
 
 QPushButton:hover {
-    background-color: #3b7cc0;
+    background-color: #97adb8;
 }
 
 QPushButton:pressed {
-    background-color: #255f98;
+    background-color: #cceaf8;
+    color: #0d141e;
 }
 
 QPushButton:disabled {
-    background-color: #324557;
-    color: #c1d0df;
-    border-color: #6a7d91;
+    background-color: #334153;
+    color: #93a6b4;
+    border-color: #1b2330;
 }
 
-QPushButton#openSaveButton {
-    min-width: 120px;
-    font-weight: 600;
+QPushButton#openSaveButton,
+QPushButton#acCreateBuildLinkButton {
+    min-width: 152px;
+}
+
+QPushButton#acCreateBuildLinkButton {
+    min-height: 38px;
+    font-size: 16px;
+    background-color: #5f738f;
+    border-color: #97adb8;
+    color: #ffffff;
+}
+
+QPushButton#acCreateBuildLinkButton:hover:enabled {
+    background-color: #7f93aa;
+}
+
+QPushButton#acCreateBuildLinkButton:pressed:enabled {
+    background-color: #cceaf8;
+    color: #0d141e;
+}
+
+QPushButton#acCreateBuildLinkButton:disabled {
+    background-color: #39485b;
+    border-color: #233140;
+    color: #7f93a2;
 }
 
 QFrame#inlineStatusFrame[bannerTone="success"] {
-    background-color: #13261d;
+    background-color: rgba(19, 38, 29, 0.95);
     border-color: #2d8a5f;
 }
 
 QFrame#inlineStatusFrame[bannerTone="error"] {
-    background-color: #29171a;
+    background-color: rgba(41, 23, 26, 0.95);
     border-color: #b35f5f;
 }
 
 QLabel[badgeState="editable"],
 QLabel[badgeState="readonly"],
 QLabel[badgeState="blocked"] {
-    min-width: 92px;
-    padding: 3px 10px;
-    border-radius: 10px;
-    font-weight: 600;
+    min-width: 108px;
+    padding: 4px 12px;
+    font-family: "AgencyFB", "Agency FB Bold", "Agency FB", "Aldrich-Custom";
+    font-size: 14px;
+    letter-spacing: 1px;
 }
 
 QLabel[badgeState="editable"] {
-    background-color: #163929;
+    background-color: rgba(24, 69, 50, 0.92);
     color: #b7f1d0;
     border: 1px solid #2e9b69;
 }
 
 QLabel[badgeState="readonly"] {
-    background-color: #2a313c;
+    background-color: rgba(42, 49, 60, 0.92);
     color: #d8e1ea;
     border: 1px solid #728397;
 }
 
 QLabel[badgeState="blocked"] {
-    background-color: #3a2326;
+    background-color: rgba(58, 35, 38, 0.92);
     color: #ffd7d7;
     border: 1px solid #c66a6a;
 }
 
 QGroupBox {
-    margin-top: 12px;
-    padding-top: 12px;
+    margin-top: 6px;
+    padding-top: 16px;
 }
 
 QGroupBox::title {
     subcontrol-origin: margin;
-    left: 12px;
-    padding: 0 4px;
-    color: #f2f7fc;
-    font-weight: 600;
+    subcontrol-position: top left;
+    left: 0px;
+    padding: 4px 7px;
+    background-color: rgba(61, 72, 94, 0.94);
+    border: 1px solid #6e7985;
+    color: #f4f8fb;
+    font-family: "AgencyFB", "Agency FB Bold", "Agency FB", "NHL";
+    font-size: 11px;
+    letter-spacing: 1px;
 }
 
 QHeaderView::section {
-    background-color: #1b2838;
+    background-color: rgba(36, 53, 73, 0.98);
     color: #eef4fa;
     border: 0;
-    border-right: 1px solid #2d4358;
-    border-bottom: 1px solid #2d4358;
-    padding: 8px;
+    border-right: 1px solid #4b5c74;
+    border-bottom: 1px solid #4b5c74;
+    padding: 8px 6px;
+    font-size: 12px;
+    letter-spacing: 1px;
 }
 
 QTableWidget {
-    gridline-color: #26394c;
-    alternate-background-color: #131f2d;
+    gridline-color: #3d4c60;
+    alternate-background-color: rgba(20, 29, 41, 0.92);
 }
 
 QTableWidget::item {
-    padding: 6px;
+    padding: 6px 6px;
 }
 
 QTableWidget::item:selected {
-    background-color: #2d6fb0;
+    background-color: rgba(97, 112, 138, 0.94);
     color: #ffffff;
 }
 
 QScrollBar:vertical {
-    background-color: #0f1722;
-    width: 12px;
+    background-color: #0d141e;
+    width: 8px;
     margin: 0;
 }
 
 QScrollBar::handle:vertical {
-    background-color: #3a5874;
-    min-height: 28px;
-    border-radius: 6px;
+    background-color: #97adb8;
+    min-height: 24px;
 }
 
 QScrollBar::add-line:vertical,
@@ -237,19 +335,50 @@ QScrollBar::sub-page:vertical {
 QToolButton {
     background: transparent;
     border: none;
-    color: #8fc3ff;
-    padding: 4px 0;
+    color: #cceaf8;
+    padding: 2px 0;
     text-align: left;
+    font-size: 13px;
 }
 
 QToolButton:hover {
-    color: #bfddff;
+    color: #ffffff;
 }
 
-QDialog {
-    background-color: #101a27;
+QLabel[previewSlotLabel="true"] {
+    color: #d4e2ec;
+    font-size: 11px;
+    letter-spacing: 1px;
 }
 
-QDialog QLabel {
-    background: transparent;
+QLabel[previewPartLabel="true"] {
+    font-family: "AgencyFB", "Agency FB Bold", "Agency FB", "Aldrich-Custom";
+    font-size: 19px;
+    color: #ffffff;
+}
+
+QLabel[previewState="unresolved"] {
+    color: #8fa2b1;
+}
+
+QLabel#acPreviewNoteLabel {
+    padding: 2px 0 0 0;
+    font-size: 11px;
+    color: #9eb4c5;
+}
+
+QFileDialog,
+QFileDialog QWidget,
+QFileDialog QLabel,
+QFileDialog QLineEdit,
+QFileDialog QComboBox,
+QFileDialog QTreeView,
+QFileDialog QListView,
+QFileDialog QPushButton {
+    font-family: "Microsoft YaHei UI", "Segoe UI", "Arial Unicode MS";
+    font-size: 13px;
+}
+
+QFileDialog QToolButton {
+    min-width: 24px;
 }

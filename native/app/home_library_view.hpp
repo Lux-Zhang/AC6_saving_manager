@@ -7,13 +7,13 @@
 #include <QGroupBox>
 #include <QLabel>
 #include <QLineEdit>
-#include <QPlainTextEdit>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QTabWidget>
 #include <QTableWidget>
-#include <QToolButton>
 #include <QWidget>
 
+#include <array>
 #include <optional>
 #include <vector>
 
@@ -33,6 +33,8 @@ public:
     void clearInlineStatus();
     std::optional<contracts::CatalogItemDto> selectedItem() const;
     contracts::AssetKind currentLibraryAssetKind() const;
+    void setCurrentLibrary(contracts::AssetKind assetKind);
+    bool selectVisibleRow(contracts::AssetKind assetKind, int row);
 
 signals:
     void openSaveRequested();
@@ -40,6 +42,7 @@ signals:
     void importFileRequested();
     void exportSelectedRequested();
     void inlineDetailsRequested();
+    void createBuildLinkRequested();
 
 protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
@@ -57,6 +60,14 @@ private:
     };
 
     struct LibraryWidgets final {
+        struct PreviewRowWidgets final {
+            QWidget* container{nullptr};
+            QLabel* iconLabel{nullptr};
+            QLabel* slotLabel{nullptr};
+            QLabel* partLabel{nullptr};
+            QLabel* manufacturerLogoLabel{nullptr};
+        };
+
         QLineEdit* filterEdit{nullptr};
         QComboBox* sourceFilterCombo{nullptr};
         QTableWidget* table{nullptr};
@@ -77,8 +88,14 @@ private:
         QLabel* statusBadgeLabel{nullptr};
         QLabel* statusNoteLabel{nullptr};
         QLabel* previewValueLabel{nullptr};
-        QToolButton* technicalToggleButton{nullptr};
-        QPlainTextEdit* technicalText{nullptr};
+        QWidget* previewPanel{nullptr};
+        QLabel* previewEmptyStateLabel{nullptr};
+        QLabel* previewNoteLabel{nullptr};
+        QPushButton* createBuildLinkButton{nullptr};
+        QScrollArea* previewScrollArea{nullptr};
+        QWidget* previewScrollContent{nullptr};
+        std::array<QGroupBox*, 4> previewGroups{};
+        std::array<PreviewRowWidgets, 12> previewRows{};
         QPushButton* primaryActionButton{nullptr};
         QPushButton* importFileButton{nullptr};
         QPushButton* exportButton{nullptr};
@@ -99,9 +116,11 @@ private:
         const QString& importButtonObjectName, const QString& exportButtonObjectName,
         const QString& helperTextObjectName);
     void configureInspector(LibraryKind kind, QWidget* parent, LibraryWidgets& widgets);
+    void configureAcPreviewPanel(QWidget* parent, LibraryWidgets& widgets);
     void setLibraryCatalog(LibraryKind kind, const std::vector<contracts::CatalogItemDto>& items);
     void refreshVisibleRows(LibraryKind kind);
     void showItemDetails(LibraryKind kind, const std::optional<contracts::CatalogItemDto>& item);
+    void showAcPreview(const std::optional<contracts::CatalogItemDto>& item);
     std::optional<contracts::CatalogItemDto> selectedItem(LibraryKind kind) const;
     void updateActionState(LibraryKind kind, const std::optional<contracts::CatalogItemDto>& item);
     bool itemMatchesSourceFilter(LibraryKind kind, const contracts::CatalogItemDto& item) const;
@@ -114,11 +133,12 @@ private:
     QString slotText(const contracts::CatalogItemDto& item) const;
     QString statusNoteText(const contracts::CatalogItemDto& item) const;
     QString detailTitleFor(LibraryKind kind, const contracts::CatalogItemDto& item) const;
+    QString previewPartText(const contracts::AcAssemblySlotDto& slot) const;
+    QString previewManufacturerResource(const std::string& manufacturer) const;
     QString sessionStateText() const;
     void updateSessionCard();
     void updateStatusBadge(QLabel* label, const QString& text, const QString& state);
     void updateInlineStatusVisibility();
-    void setTechnicalDetailsExpanded(LibraryWidgets& widgets, bool expanded);
 
     QFrame* sessionCard_{nullptr};
     QLabel* sessionStateValueLabel_{nullptr};

@@ -1,4 +1,5 @@
 #include "ac_catalog.hpp"
+#include "ac_preview_support.hpp"
 
 #include <QString>
 
@@ -57,6 +58,7 @@ struct AcDisplayMetadata final {
     std::string machineName;
     std::string shareCode;
     std::size_t blockCount{0};
+    std::optional<std::array<std::uint32_t, 16>> assembleWords;
 };
 
 class Cursor final {
@@ -101,6 +103,9 @@ constexpr std::array<char, 15> kEndMarker = {
     '-', '-', '-', '-', ' ', ' ', 'e', 'n', 'd', ' ', ' ', '-', '-', '-', '-'
 };
 constexpr std::array<char, 4> kAsmcMagic = {'A', 'S', 'M', 'C'};
+// Current save forensics still only qualify USER_DATA002..006 as the editable/share AC record containers.
+// Real decrypted samples show USER_DATA008 uses a different multi-block shape
+// (Summary/Account/Result/Assemble/Emblem/PilotName/NamePlate/GradeRank) and is not a Design-based AC library.
 constexpr std::array<KnownAcSlotFile, 5> kKnownAcSlotFiles{{
     {"USER_DATA002", contracts::SourceBucket::User1},
     {"USER_DATA003", contracts::SourceBucket::User2},
@@ -282,6 +287,15 @@ std::optional<std::vector<std::uint8_t>> inflateAsmcPayload(const std::vector<st
     return inflated;
 }
 
+std::optional<std::array<std::uint32_t, 16>> parseAssembleWords(const std::vector<std::uint8_t>& payload) {
+    if (payload.size() != (16U * sizeof(std::uint32_t))) {
+        return std::nullopt;
+    }
+    std::array<std::uint32_t, 16> words{};
+    std::memcpy(words.data(), payload.data(), payload.size());
+    return words;
+}
+
 AcDisplayMetadata extractDisplayMetadata(const std::vector<std::uint8_t>& recordBytes) {
     AcDisplayMetadata metadata;
     std::vector<RecordBlock> blocks;
@@ -324,6 +338,10 @@ AcDisplayMetadata extractDisplayMetadata(const std::vector<std::uint8_t>& record
                 const auto candidate = readTextBlockFrom(designBlocks, "UgcID");
                 if (looksLikeShareCode(candidate)) {
                     metadata.shareCode = candidate;
+                }
+                if (const auto* assemblePayload = findPayloadIn(designBlocks, "Assemble");
+                    assemblePayload != nullptr) {
+                    metadata.assembleWords = parseAssembleWords(*assemblePayload);
                 }
             } catch (const std::exception&) {
             }
@@ -999,8 +1017,18 @@ AcCatalogSnapshot buildProvisionalCatalogSnapshot(const std::filesystem::path& u
             dto.sourceLabel = sourceBucketDisplayLabel(record.sourceBucket);
             dto.description = "AC encrypted container record built from USER_DATA00X AES-CBC begin/end records, with target-bucket Category patching and entry checksum rewrite during import.";
             dto.tags = {"ac", "record-ref-qualified", "aes-cbc-begin-end"};
-            dto.previewState = contracts::PreviewState::Unknown;
-            dto.preview.provenance = "preview-disabled.temporarily";
+            if (metadata.assembleWords.has_value()) {
+                dto.acPreview = tryBuildAdvancedGaragePreview(*metadata.assembleWords);
+                dto.previewState = dto.acPreview.has_value()
+                    ? contracts::PreviewState::DerivedRender
+                    : contracts::PreviewState::Unknown;
+                dto.preview.provenance = dto.acPreview.has_value()
+                    ? "advanced-garage.compatibility.partial"
+                    : "advanced-garage.compatibility.unavailable";
+            } else {
+                dto.previewState = contracts::PreviewState::Unavailable;
+                dto.preview.provenance = "advanced-garage.compatibility.no-assemble";
+            }
             dto.detailFields.push_back({"AssetKind", contracts::toString(dto.assetKind)});
             dto.detailFields.push_back({"SourceBucket", contracts::toString(dto.sourceBucket)});
             dto.detailFields.push_back({"WriteCapability", contracts::toString(dto.writeCapability)});
@@ -1018,6 +1046,14 @@ AcCatalogSnapshot buildProvisionalCatalogSnapshot(const std::filesystem::path& u
             dto.detailFields.push_back({"ContainerHeaderCount", std::to_string(container.recordCountField)});
             dto.detailFields.push_back({"FirstRecordDesignOffset", std::to_string(container.firstRecordDesignOffset)});
             dto.detailFields.push_back({"RecordBlockCount", std::to_string(metadata.blockCount)});
+            if (metadata.assembleWords.has_value()) {
+                dto.detailFields.push_back({"AssembleWords", formatAssembleWordsForDetail(*metadata.assembleWords)});
+            }
+            if (dto.acPreview.has_value()) {
+                dto.detailFields.push_back({"BuildLinkCompatible", dto.acPreview->buildLinkCompatible ? "true" : "false"});
+                dto.detailFields.push_back({"BuildLinkUrl", dto.acPreview->buildLinkUrl.empty() ? "-" : dto.acPreview->buildLinkUrl});
+                dto.detailFields.push_back({"AcPreviewNote", dto.acPreview->note});
+            }
             if (!container.qualified) {
                 dto.detailFields.push_back({"QualificationNote", container.qualificationNote});
             }

@@ -104,6 +104,7 @@ OpenSaveResultDto NativeOpenSaveService::openSourceSave(const std::filesystem::p
     state_->container.reset();
     state_->snapshot.reset();
     state_->acSnapshot.reset();
+    state_->runtimeRegulationSnapshot.reset();
 
     tool_adapter::WitchyBndProcessAdapter adapter(state_->appRoot);
     const auto manifestResult = adapter.verifyBundledManifest();
@@ -159,6 +160,7 @@ OpenSaveResultDto NativeOpenSaveService::openSourceSave(const std::filesystem::p
         state_->container = codec.readEncrypted(*state_->userData007Path);
         state_->snapshot = emblem::buildCatalogSnapshot(*state_->container);
         state_->acSnapshot = ac::buildProvisionalCatalogSnapshot(*state_->unpackedDir);
+        state_->runtimeRegulationSnapshot = ac::inspectRuntimeRegulationSnapshot(*state_->unpackedDir);
     } catch (const std::exception& exception) {
         return blockedOpenSave(
             *state_,

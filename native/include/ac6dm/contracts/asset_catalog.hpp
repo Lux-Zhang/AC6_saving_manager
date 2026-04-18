@@ -2,6 +2,7 @@
 
 #include "ac6dm/contracts/common_types.hpp"
 
+#include <array>
 #include <optional>
 #include <string>
 #include <vector>
@@ -118,6 +119,24 @@ inline std::string toString(const WriteCapability value) {
     return "read_only";
 }
 
+struct AcAssemblySlotDto final {
+    std::string slotKey;
+    std::string groupKey;
+    std::string slotLabel;
+    std::string partName;
+    std::string manufacturer;
+    std::optional<int> advancedGaragePartId;
+    bool hasMatch{false};
+};
+
+struct AcPreviewDto final {
+    std::array<AcAssemblySlotDto, 12> assemblySlots{};
+    std::array<std::optional<int>, 12> compatibleBuildIds{};
+    std::string buildLinkUrl;
+    bool buildLinkCompatible{false};
+    std::string note;
+};
+
 struct CatalogItemDto final {
     std::string assetId;
     AssetKind assetKind{AssetKind::Emblem};
@@ -140,6 +159,7 @@ struct CatalogItemDto final {
     std::vector<std::string> tags;
     std::vector<std::string> dependencyRefs;
     std::vector<DetailField> detailFields;
+    std::optional<AcPreviewDto> acPreview;
 };
 
 }  // namespace ac6dm::contracts

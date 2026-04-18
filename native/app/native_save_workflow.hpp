@@ -2,6 +2,7 @@
 
 #include "app_services.hpp"
 #include "core/ac/ac_catalog.hpp"
+#include "core/ac/ac_runtime_regulation.hpp"
 #include "core/emblem/emblem_domain.hpp"
 #include "core/tool_adapter/WitchyBndProcessAdapter.hpp"
 #include "core/workspace/SessionWorkspace.hpp"
@@ -21,6 +22,7 @@ struct NativeWorkflowState final {
     std::optional<emblem::UserDataContainer> container;
     std::optional<emblem::EmblemCatalogSnapshot> snapshot;
     std::optional<ac::AcCatalogSnapshot> acSnapshot;
+    std::optional<ac::RuntimeRegulationSnapshotInfo> runtimeRegulationSnapshot;
 };
 
 class NativeOpenSaveService final : public contracts::ISaveOpenService {

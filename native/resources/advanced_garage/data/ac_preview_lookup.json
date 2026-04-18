@@ -1,0 +1,418 @@
+{
+  "slotWords": {
+    "head": 0,
+    "core": 1,
+    "arms": 2,
+    "legs": 3,
+    "booster": 4,
+    "fcs": 5,
+    "generator": 6,
+    "leftArm": 8,
+    "rightArm": 9,
+    "leftBack": 10,
+    "rightBack": 11,
+    "expansion": 15
+  },
+  "noneSentinel": 4294967295,
+  "slotRowToAgPartId": {
+    "leftArm": {
+      "20000100": 46,
+      "20000200": 41,
+      "20000300": 44,
+      "20010000": 37,
+      "20020000": 96,
+      "20030000": 97,
+      "20040000": 90,
+      "20050000": 79,
+      "20060000": 99,
+      "20070000": 2,
+      "20080000": 62,
+      "20090000": 89,
+      "20100000": 22
+    },
+    "rightArm": {
+      "10000000": 56,
+      "15000000": 56,
+      "10000100": 52,
+      "15000100": 52,
+      "10000200": 53,
+      "15000200": 53,
+      "10010000": 57,
+      "15010000": 57,
+      "10010100": 64,
+      "15010100": 64,
+      "10010200": 65,
+      "15010200": 65,
+      "10020000": 54,
+      "15020000": 54,
+      "10020100": 61,
+      "15020100": 61,
+      "10020200": 26,
+      "15020200": 26,
+      "10020300": 100,
+      "15020300": 100,
+      "10030000": 23,
+      "15030000": 23,
+      "10040100": 58,
+      "15040100": 58,
+      "10040200": 21,
+      "15040200": 21,
+      "10050000": 101,
+      "15050000": 101,
+      "10050100": 67,
+      "15050100": 67,
+      "10050200": 68,
+      "15050200": 68,
+      "10060000": 25,
+      "15060000": 25,
+      "10060100": 27,
+      "15060100": 27,
+      "10070000": 29,
+      "15070000": 29,
+      "10070100": 55,
+      "15070100": 55,
+      "10070200": 33,
+      "15070200": 33,
+      "10070300": 34,
+      "15070300": 34,
+      "10080000": 60,
+      "15080000": 60,
+      "10080100": 59,
+      "15080100": 59,
+      "10080200": 103,
+      "15080200": 103,
+      "10090000": 38,
+      "15090000": 38,
+      "10090100": 39,
+      "15090100": 39,
+      "10100000": 49,
+      "15100000": 49,
+      "10110000": 86,
+      "15110000": 86,
+      "10110100": 87,
+      "15110100": 87,
+      "10110200": 45,
+      "15110200": 45,
+      "10120000": 95,
+      "15120000": 95,
+      "10120100": 1,
+      "15120100": 1,
+      "10130000": 35,
+      "15130000": 35,
+      "10150000": 106,
+      "15150000": 106,
+      "10150100": 88,
+      "15150100": 88,
+      "10150200": 40,
+      "15150200": 40,
+      "10150300": 43,
+      "15150300": 43,
+      "10160000": 98,
+      "15160000": 98,
+      "10170000": 0,
+      "15170000": 0,
+      "10180000": 85,
+      "15180000": 85,
+      "10190000": 104,
+      "15190000": 104
+    },
+    "leftBack": {
+      "25000100": 69,
+      "25010000": 84,
+      "25010100": 70,
+      "25010200": 71,
+      "25000000": 83,
+      "25010300": 48,
+      "25020000": 76,
+      "35000000": 92,
+      "35000100": 94,
+      "35000200": 93,
+      "35010000": 19,
+      "35010100": 18,
+      "35020000": 12,
+      "35020100": 8,
+      "35020200": 13,
+      "35030000": 47,
+      "35040000": 7,
+      "35040100": 6,
+      "35040200": 5,
+      "35050000": 3,
+      "35070000": 105,
+      "35080000": 11,
+      "35080100": 14,
+      "35080200": 10,
+      "35090000": 17,
+      "35090100": 15,
+      "35090200": 16,
+      "35100000": 72,
+      "35110000": 30,
+      "35120000": 9,
+      "35130000": 102,
+      "35140100": 91,
+      "35150100": 82,
+      "35200000": 66,
+      "35210000": 28,
+      "35220000": 73,
+      "35240000": 50,
+      "35250100": 74,
+      "35270000": 75,
+      "35300000": 20,
+      "35300100": 4,
+      "35350100": 42,
+      "35400000": 24
+    },
+    "rightBack": {
+      "30000000": 92,
+      "30000100": 94,
+      "30000200": 93,
+      "30010000": 19,
+      "30010100": 18,
+      "30020000": 12,
+      "30020100": 8,
+      "30020200": 13,
+      "30030000": 47,
+      "30040000": 7,
+      "30040100": 6,
+      "30040200": 5,
+      "30050000": 3,
+      "30070000": 105,
+      "30080000": 11,
+      "30080100": 14,
+      "30080200": 10,
+      "30090000": 17,
+      "30090100": 15,
+      "30090200": 16,
+      "30100000": 72,
+      "30110000": 30,
+      "30120000": 9,
+      "30130000": 102,
+      "30140100": 91,
+      "30150100": 82,
+      "30200000": 66,
+      "30210000": 28,
+      "30220000": 73,
+      "30240000": 50,
+      "30250100": 74,
+      "30270000": 75,
+      "30300000": 20,
+      "30300100": 4,
+      "30350100": 42,
+      "30400000": 24
+    },
+    "head": {
+      "318505856": 115
+    },
+    "core": {
+      "319505856": 135
+    },
+    "arms": {
+      "320505856": 150
+    },
+    "legs": {
+      "321505856": 168
+    },
+    "booster": {
+      "1670683136": 196,
+      "4294967295": 232
+    },
+    "fcs": {
+      "1407177280": 205
+    },
+    "generator": {
+      "1949048192": 214
+    },
+    "expansion": {
+      "75000000": 227,
+      "75010000": 228,
+      "75020000": 229,
+      "75030000": 230,
+      "4294967295": 233
+    }
+  },
+  "provisionalSlotRowToAgPartId": {
+    "fcs": {
+      "1407187680": 205
+    },
+    "generator": {
+      "1949058192": 214
+    }
+  },
+  "unresolvedRowIds": [
+    {
+      "slotKey": "rightArm",
+      "rowId": 10040000,
+      "maker": 18,
+      "attackType": "Explosive",
+      "menuManageCategory": 230,
+      "equipPanelIconID": 4
+    },
+    {
+      "slotKey": "rightArm",
+      "rowId": 15040000,
+      "maker": 18,
+      "attackType": "Explosive",
+      "menuManageCategory": 230,
+      "equipPanelIconID": 4
+    },
+    {
+      "slotKey": "rightArm",
+      "rowId": 10110300,
+      "maker": 20,
+      "attackType": "Energy",
+      "menuManageCategory": 330,
+      "equipPanelIconID": 3
+    },
+    {
+      "slotKey": "rightArm",
+      "rowId": 15110300,
+      "maker": 20,
+      "attackType": "Energy",
+      "menuManageCategory": 330,
+      "equipPanelIconID": 3
+    },
+    {
+      "slotKey": "rightArm",
+      "rowId": 10130100,
+      "maker": 17,
+      "attackType": "Energy",
+      "menuManageCategory": 320,
+      "equipPanelIconID": 1
+    },
+    {
+      "slotKey": "rightArm",
+      "rowId": 15130100,
+      "maker": 17,
+      "attackType": "Energy",
+      "menuManageCategory": 320,
+      "equipPanelIconID": 1
+    },
+    {
+      "slotKey": "rightArm",
+      "rowId": 10140000,
+      "maker": 20,
+      "attackType": "Energy",
+      "menuManageCategory": 330,
+      "equipPanelIconID": 3
+    },
+    {
+      "slotKey": "rightArm",
+      "rowId": 15140000,
+      "maker": 20,
+      "attackType": "Energy",
+      "menuManageCategory": 330,
+      "equipPanelIconID": 3
+    },
+    {
+      "slotKey": "rightArm",
+      "rowId": 10300000,
+      "maker": 8,
+      "attackType": "Energy",
+      "menuManageCategory": 275,
+      "equipPanelIconID": 6
+    },
+    {
+      "slotKey": "rightArm",
+      "rowId": 15300000,
+      "maker": 8,
+      "attackType": "Energy",
+      "menuManageCategory": 275,
+      "equipPanelIconID": 6
+    },
+    {
+      "slotKey": "rightBack",
+      "rowId": 30230000,
+      "maker": 8,
+      "attackType": "Energy",
+      "menuManageCategory": 1050,
+      "equipPanelIconID": 10
+    },
+    {
+      "slotKey": "leftBack",
+      "rowId": 35230000,
+      "maker": 8,
+      "attackType": "Energy",
+      "menuManageCategory": 1050,
+      "equipPanelIconID": 10
+    },
+    {
+      "slotKey": "rightBack",
+      "rowId": 30250000,
+      "maker": 7,
+      "attackType": "Energy",
+      "menuManageCategory": 1040,
+      "equipPanelIconID": 10
+    },
+    {
+      "slotKey": "leftBack",
+      "rowId": 35250000,
+      "maker": 7,
+      "attackType": "Energy",
+      "menuManageCategory": 1040,
+      "equipPanelIconID": 10
+    },
+    {
+      "slotKey": "rightBack",
+      "rowId": 30260000,
+      "maker": 7,
+      "attackType": "Energy",
+      "menuManageCategory": 1060,
+      "equipPanelIconID": 10
+    },
+    {
+      "slotKey": "leftBack",
+      "rowId": 35260000,
+      "maker": 7,
+      "attackType": "Energy",
+      "menuManageCategory": 1060,
+      "equipPanelIconID": 10
+    },
+    {
+      "slotKey": "rightBack",
+      "rowId": 30310000,
+      "maker": 8,
+      "attackType": "Kinetic",
+      "menuManageCategory": 1080,
+      "equipPanelIconID": 10
+    },
+    {
+      "slotKey": "leftBack",
+      "rowId": 35310000,
+      "maker": 8,
+      "attackType": "Kinetic",
+      "menuManageCategory": 1080,
+      "equipPanelIconID": 10
+    },
+    {
+      "slotKey": "rightArm",
+      "rowId": 95020000,
+      "maker": 2,
+      "attackType": "Coral",
+      "menuManageCategory": 370,
+      "equipPanelIconID": 3
+    },
+    {
+      "slotKey": "leftArm",
+      "rowId": 95020100,
+      "maker": 2,
+      "attackType": "Coral",
+      "menuManageCategory": 1590,
+      "equipPanelIconID": 7
+    },
+    {
+      "slotKey": "rightBack",
+      "rowId": 95020200,
+      "maker": 2,
+      "attackType": "Coral",
+      "menuManageCategory": 550,
+      "equipPanelIconID": 9
+    },
+    {
+      "slotKey": "leftBack",
+      "rowId": 95020300,
+      "maker": 2,
+      "attackType": null,
+      "menuManageCategory": 1430,
+      "equipPanelIconID": 8
+    }
+  ]
+}

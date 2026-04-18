@@ -30,6 +30,7 @@ bool isConsoleMode(const int argc, char** argv) {
     const auto mode = std::string_view(argv[1]);
     return mode == "--probe-open-save"
         || mode == "--probe-open-save-ac-debug"
+        || mode == "--probe-open-save-ac-rows"
         || mode == "--probe-import-first-share"
         || mode == "--probe-import-first-share-ac";
 }
@@ -264,6 +265,68 @@ int runOpenSaveAcDebugProbe(int argc, char** argv) {
     return result.diagnostics.empty() ? 0 : 1;
 }
 
+int runOpenSaveAcRowsProbe(int argc, char** argv) {
+    QApplication application(argc, argv);
+    const auto savePath = std::filesystem::path(QString::fromLocal8Bit(argv[2]).toStdWString());
+    const auto reportPath = std::filesystem::path(QString::fromLocal8Bit(argv[3]).toStdWString());
+    auto services = ac6dm::app::AppServices::createDefault();
+    const auto result = services.openSaveService->openSourceSave(savePath);
+
+    std::ofstream output(reportPath, std::ios::binary | std::ios::trunc);
+    if (!output) {
+        return 2;
+    }
+
+    output << "summary=" << result.session.summary << "\n";
+    output << "workflowAvailable=" << (result.session.workflowAvailable ? "true" : "false") << "\n";
+    output << "hasRealSave=" << (result.session.hasRealSave ? "true" : "false") << "\n";
+    output << "catalogCount=" << result.catalog.size() << "\n";
+
+    int row = 0;
+    for (const auto& item : result.catalog) {
+        if (item.assetKind != ac6dm::contracts::AssetKind::Ac) {
+            continue;
+        }
+        output << "acItem[" << row << "].assetId=" << item.assetId << "\n";
+        output << "acItem[" << row << "].displayName=" << item.displayName << "\n";
+        output << "acItem[" << row << "].archiveName=" << item.archiveName << "\n";
+        output << "acItem[" << row << "].machineName=" << item.machineName << "\n";
+        output << "acItem[" << row << "].shareCode=" << item.shareCode << "\n";
+        output << "acItem[" << row << "].originLabel=" << item.sourceLabel << "\n";
+        output << "acItem[" << row << "].sourceBucket=" << ac6dm::contracts::toString(item.sourceBucket) << "\n";
+        output << "acItem[" << row << "].slotLabel=" << item.slotLabel << "\n";
+        output << "acItem[" << row << "].recordRef=" << item.recordRef << "\n";
+        output << "acItem[" << row << "].writeCapability=" << ac6dm::contracts::toString(item.writeCapability) << "\n";
+        if (item.acPreview.has_value()) {
+            output << "acItem[" << row << "].buildLinkCompatible="
+                   << (item.acPreview->buildLinkCompatible ? "true" : "false") << "\n";
+            for (std::size_t slotIndex = 0; slotIndex < item.acPreview->assemblySlots.size(); ++slotIndex) {
+                const auto& slot = item.acPreview->assemblySlots[slotIndex];
+                output << "acItem[" << row << "].slot[" << slotIndex << "].key=" << slot.slotKey << "\n";
+                output << "acItem[" << row << "].slot[" << slotIndex << "].label=" << slot.slotLabel << "\n";
+                output << "acItem[" << row << "].slot[" << slotIndex << "].partName=" << slot.partName << "\n";
+                output << "acItem[" << row << "].slot[" << slotIndex << "].manufacturer=" << slot.manufacturer << "\n";
+                output << "acItem[" << row << "].slot[" << slotIndex << "].hasMatch=" << (slot.hasMatch ? "true" : "false") << "\n";
+                output << "acItem[" << row << "].slot[" << slotIndex << "].agPartId="
+                       << (slot.advancedGaragePartId.has_value() ? std::to_string(*slot.advancedGaragePartId) : "-") << "\n";
+            }
+        }
+        for (const auto& field : item.detailFields) {
+            output << "acItem[" << row << "].detail." << field.label << "=" << field.value << "\n";
+        }
+        ++row;
+    }
+
+    if (!result.diagnostics.empty()) {
+        output << "diagnosticCode=" << result.diagnostics.front().code << "\n";
+        output << "diagnosticMessage=" << result.diagnostics.front().message << "\n";
+        for (const auto& detail : result.diagnostics.front().details) {
+            output << "detail=" << detail << "\n";
+        }
+    }
+    return result.diagnostics.empty() ? 0 : 1;
+}
+
 int runImportProbe(int argc, char** argv) {
     QApplication application(argc, argv);
     const auto sourceSave = std::filesystem::path(QString::fromLocal8Bit(argv[2]).toStdWString());
@@ -455,6 +518,9 @@ int main(int argc, char** argv) {
     }
     if (argc >= 4 && std::string_view(argv[1]) == "--probe-open-save-ac-debug") {
         return runOpenSaveAcDebugProbe(argc, argv);
+    }
+    if (argc >= 4 && std::string_view(argv[1]) == "--probe-open-save-ac-rows") {
+        return runOpenSaveAcRowsProbe(argc, argv);
     }
     if (argc >= 4 && std::string_view(argv[1]) == "--probe-import-first-share") {
         return runImportProbe(argc, argv);

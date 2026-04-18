@@ -1,5 +1,43 @@
 <RCC>
   <qresource prefix="/">
     <file alias="ui/ac6dm_dark.qss">../resources/ui/ac6dm_dark.qss</file>
+    <file alias="advanced_garage/data/PartsData.json">../resources/advanced_garage/data/PartsData.json</file>
+    <file alias="advanced_garage/data/ac_preview_lookup.json">../resources/advanced_garage/data/ac_preview_lookup.json</file>
+    <file alias="advanced_garage/data/regulation_preset_catalog.json">../resources/advanced_garage/data/regulation_preset_catalog.json</file>
+    <file alias="advanced_garage/names/EquipParamWeapon.txt">../resources/advanced_garage/names/EquipParamWeapon.txt</file>
+    <file alias="advanced_garage/names/EquipParamProtector.txt">../resources/advanced_garage/names/EquipParamProtector.txt</file>
+    <file alias="advanced_garage/names/EquipParamBooster.txt">../resources/advanced_garage/names/EquipParamBooster.txt</file>
+    <file alias="advanced_garage/names/EquipParamFcs.txt">../resources/advanced_garage/names/EquipParamFcs.txt</file>
+    <file alias="advanced_garage/names/EquipParamGenerator.txt">../resources/advanced_garage/names/EquipParamGenerator.txt</file>
+    <file alias="advanced_garage/fonts/aldrich-custom.ttf">../resources/advanced_garage/fonts/aldrich-custom.ttf</file>
+    <file alias="advanced_garage/fonts/agencyfb-bold.ttf">../resources/advanced_garage/fonts/agencyfb-bold.ttf</file>
+    <file alias="advanced_garage/fonts/nhl.ttf">../resources/advanced_garage/fonts/nhl.ttf</file>
+    <file alias="advanced_garage/images/slots/rightArm.png">../resources/advanced_garage/images/slots/rightArm.png</file>
+    <file alias="advanced_garage/images/slots/leftArm.png">../resources/advanced_garage/images/slots/leftArm.png</file>
+    <file alias="advanced_garage/images/slots/rightBack.png">../resources/advanced_garage/images/slots/rightBack.png</file>
+    <file alias="advanced_garage/images/slots/leftBack.png">../resources/advanced_garage/images/slots/leftBack.png</file>
+    <file alias="advanced_garage/images/slots/head.png">../resources/advanced_garage/images/slots/head.png</file>
+    <file alias="advanced_garage/images/slots/core.png">../resources/advanced_garage/images/slots/core.png</file>
+    <file alias="advanced_garage/images/slots/arms.png">../resources/advanced_garage/images/slots/arms.png</file>
+    <file alias="advanced_garage/images/slots/legs.png">../resources/advanced_garage/images/slots/legs.png</file>
+    <file alias="advanced_garage/images/slots/booster.png">../resources/advanced_garage/images/slots/booster.png</file>
+    <file alias="advanced_garage/images/slots/fcs.png">../resources/advanced_garage/images/slots/fcs.png</file>
+    <file alias="advanced_garage/images/slots/generator.png">../resources/advanced_garage/images/slots/generator.png</file>
+    <file alias="advanced_garage/images/slots/expansion.png">../resources/advanced_garage/images/slots/expansion.png</file>
+    <file alias="advanced_garage/images/manufacturers/ALLMIND.png">../resources/advanced_garage/images/manufacturers/ALLMIND.png</file>
+    <file alias="advanced_garage/images/manufacturers/ARQUEBUS.png">../resources/advanced_garage/images/manufacturers/ARQUEBUS.png</file>
+    <file alias="advanced_garage/images/manufacturers/ARQUEBUS_ADD.png">../resources/advanced_garage/images/manufacturers/ARQUEBUS_ADD.png</file>
+    <file alias="advanced_garage/images/manufacturers/BALAM.png">../resources/advanced_garage/images/manufacturers/BALAM.png</file>
+    <file alias="advanced_garage/images/manufacturers/BAWS.png">../resources/advanced_garage/images/manufacturers/BAWS.png</file>
+    <file alias="advanced_garage/images/manufacturers/DAFENG.png">../resources/advanced_garage/images/manufacturers/DAFENG.png</file>
+    <file alias="advanced_garage/images/manufacturers/ELCANO.png">../resources/advanced_garage/images/manufacturers/ELCANO.png</file>
+    <file alias="advanced_garage/images/manufacturers/FURLONG.png">../resources/advanced_garage/images/manufacturers/FURLONG.png</file>
+    <file alias="advanced_garage/images/manufacturers/MELINITE.png">../resources/advanced_garage/images/manufacturers/MELINITE.png</file>
+    <file alias="advanced_garage/images/manufacturers/RAD.png">../resources/advanced_garage/images/manufacturers/RAD.png</file>
+    <file alias="advanced_garage/images/manufacturers/RRI.png">../resources/advanced_garage/images/manufacturers/RRI.png</file>
+    <file alias="advanced_garage/images/manufacturers/SCHNEIDER.png">../resources/advanced_garage/images/manufacturers/SCHNEIDER.png</file>
+    <file alias="advanced_garage/images/manufacturers/TAKIGAWA.png">../resources/advanced_garage/images/manufacturers/TAKIGAWA.png</file>
+    <file alias="advanced_garage/images/manufacturers/VCPL.png">../resources/advanced_garage/images/manufacturers/VCPL.png</file>
+    <file alias="advanced_garage/images/ui/dot_grid.xpm">../resources/advanced_garage/images/ui/dot_grid.xpm</file>
   </qresource>
 </RCC>

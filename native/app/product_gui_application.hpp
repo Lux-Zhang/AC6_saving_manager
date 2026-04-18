@@ -4,6 +4,8 @@
 
 #include <QApplication>
 #include <memory>
+#include <optional>
+#include <filesystem>
 
 namespace ac6dm::app {
 
@@ -19,6 +21,8 @@ private:
     QApplication app_;
     AppServices services_;
     std::unique_ptr<MainWindow> mainWindow_;
+    std::optional<std::filesystem::path> startupSavePath_{};
+    std::optional<int> startupAcRow_{};
 };
 
 }  // namespace ac6dm::app

@@ -4,8 +4,9 @@
 #include "home_library_view.hpp"
 
 #include <QMainWindow>
-#include <QString>
 #include <QStringList>
+#include <QTimer>
+#include <QString>
 #include <filesystem>
 #include <optional>
 
@@ -15,7 +16,9 @@ class MainWindow final : public QMainWindow {
     Q_OBJECT
 
 public:
-    explicit MainWindow(AppServices services, QWidget* parent = nullptr);
+    explicit MainWindow(AppServices services, QWidget* parent = nullptr,
+        std::optional<std::filesystem::path> startupSavePath = std::nullopt,
+        std::optional<int> startupAcRow = std::nullopt);
 
 private slots:
     void handleOpenSave();
@@ -23,6 +26,7 @@ private slots:
     void handleImportFile();
     void handleExportSelected();
     void handleInlineDetailsRequested();
+    void handleCreateBuildLink();
 
 private:
     struct DetailDialogPayload final {
@@ -42,6 +46,8 @@ private:
     void presentDetailDialog(const DetailDialogPayload& payload);
     void cacheDetailDialogPayload(const DetailDialogPayload& payload);
     void clearDetailDialogPayload();
+    void runStartupAutomation();
+    void captureDiagnosticScreenshot(const std::filesystem::path& outputPath, bool exitAfterCapture);
     DetailDialogPayload buildOpenSaveDetailPayload(const contracts::OpenSaveResultDto& result) const;
     DetailDialogPayload buildActionDetailPayload(const QString& title, const QString& summary,
         const contracts::ActionResultDto& result, const std::vector<contracts::DiagnosticEntry>* diagnostics) const;
@@ -49,6 +55,8 @@ private:
     AppServices services_;
     HomeLibraryView* homeView_{nullptr};
     std::optional<DetailDialogPayload> lastDetailDialogPayload_{};
+    std::optional<std::filesystem::path> startupSavePath_{};
+    std::optional<int> startupAcRow_{};
 };
 
 }  // namespace ac6dm::app

@@ -15,11 +15,15 @@ add_executable(ac6dm_native_tests
   preview_contract_test.cpp
   emblem_preview_service_test.cpp
   ac_preview_probe_test.cpp
+  ac_preview_support_test.cpp
+  ac_regulation_catalog_test.cpp
+  ac_runtime_regulation_test.cpp
   ui/home_library_view_test.cpp
   ui/target_slot_dialog_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../app/home_library_view.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../app/native_exchange_workflow.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../app/target_slot_dialog.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../app/ui_resources.qrc
   ${ac6dm_core_sources}
 )
 

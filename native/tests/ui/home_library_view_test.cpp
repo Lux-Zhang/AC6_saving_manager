@@ -56,6 +56,21 @@ contracts::CatalogItemDto makeItem(const std::string& name, contracts::AssetOrig
             : contracts::WriteCapability::Editable;
         item.slotLabel = "AC_SLOT";
         item.recordRef = "USER_DATA002/record/0?bucket=user1";
+        contracts::AcPreviewDto preview;
+        for (std::size_t index = 0; index < preview.assemblySlots.size(); ++index) {
+            preview.assemblySlots[index].slotKey = "slot-" + std::to_string(index);
+            preview.assemblySlots[index].groupKey = "unit";
+            preview.assemblySlots[index].slotLabel = "SLOT " + std::to_string(index);
+            preview.assemblySlots[index].partName = "PART " + std::to_string(index);
+            preview.assemblySlots[index].manufacturer = "BALAM";
+            preview.assemblySlots[index].advancedGaragePartId = static_cast<int>(index);
+            preview.assemblySlots[index].hasMatch = true;
+            preview.compatibleBuildIds[index] = static_cast<int>(index);
+        }
+        preview.buildLinkCompatible = true;
+        preview.buildLinkUrl = "https://matteosal.github.io/ac6-advanced-garage/?build=0-1-2-3-4-5-6-7-8-9-10-11";
+        preview.note = "preview ready";
+        item.acPreview = preview;
     } else {
         item.assetKind = contracts::AssetKind::Emblem;
         item.shareCode = origin == contracts::AssetOrigin::Share ? name : std::string{};
@@ -116,12 +131,16 @@ TEST(HomeLibraryViewTest, ExposesEnglishWorkflowTabsFiltersAndInspector) {
     auto* acImportFile = view.findChild<QPushButton*>("acImportFileButton");
     auto* acExport = view.findChild<QPushButton*>("acExportButton");
     auto* acInspectorTitle = view.findChild<QLabel*>("acInspectorTitleLabel");
+    auto* acPreviewTitle = view.findChild<QLabel*>("acPreviewTitleLabel");
+    auto* acCreateBuildLinkButton = view.findChild<QPushButton*>("acCreateBuildLinkButton");
     ASSERT_NE(acTable, nullptr);
     ASSERT_NE(acSourceFilter, nullptr);
     ASSERT_NE(acImport, nullptr);
     ASSERT_NE(acImportFile, nullptr);
     ASSERT_NE(acExport, nullptr);
     ASSERT_NE(acInspectorTitle, nullptr);
+    ASSERT_NE(acPreviewTitle, nullptr);
+    ASSERT_NE(acCreateBuildLinkButton, nullptr);
     EXPECT_EQ(acSourceFilter->count(), 6);
     acTable->selectRow(0);
     QApplication::processEvents();
@@ -131,6 +150,8 @@ TEST(HomeLibraryViewTest, ExposesEnglishWorkflowTabsFiltersAndInspector) {
     EXPECT_TRUE(acImportFile->isEnabled());
     EXPECT_TRUE(acExport->isEnabled());
     EXPECT_TRUE(acInspectorTitle->text().contains(QString("Archive share")));
+    EXPECT_EQ(acPreviewTitle->text(), QString("AC Component Preview"));
+    EXPECT_TRUE(acCreateBuildLinkButton->isEnabled());
 }
 
 TEST(HomeLibraryViewTest, AppliesSourceFilterAndInlineBannerState) {

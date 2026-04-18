@@ -4,7 +4,14 @@
 #include "save_result_dialog.hpp"
 #include "target_slot_dialog.hpp"
 
+#include <QClipboard>
+#include <QCoreApplication>
+#include <QDir>
+#include <QGuiApplication>
 #include <QMessageBox>
+#include <QPixmap>
+#include <QScreen>
+#include <QTimer>
 
 namespace ac6dm::app {
 namespace {
@@ -63,10 +70,20 @@ QStringList buildPlanIssueLines(const std::vector<std::string>& issues) {
 
 }  // namespace
 
-MainWindow::MainWindow(AppServices services, QWidget* parent)
-    : QMainWindow(parent), services_(std::move(services)) {
+MainWindow::MainWindow(AppServices services, QWidget* parent,
+    std::optional<std::filesystem::path> startupSavePath,
+    std::optional<int> startupAcRow)
+    : QMainWindow(parent),
+      services_(std::move(services)),
+      startupSavePath_(std::move(startupSavePath)),
+      startupAcRow_(startupAcRow) {
     setWindowTitle(tr("AC6 Saving Manager"));
-    resize(1280, 800);
+    const QRect availableGeometry = QGuiApplication::primaryScreen() != nullptr
+        ? QGuiApplication::primaryScreen()->availableGeometry()
+        : QRect(0, 0, 1600, 960);
+    resize(
+        std::clamp(availableGeometry.width() - 72, 1380, 1640),
+        std::clamp(availableGeometry.height() - 72, 860, 1020));
 
     homeView_ = new HomeLibraryView(this);
     setCentralWidget(homeView_);
@@ -76,8 +93,10 @@ MainWindow::MainWindow(AppServices services, QWidget* parent)
     connect(homeView_, &HomeLibraryView::importFileRequested, this, &MainWindow::handleImportFile);
     connect(homeView_, &HomeLibraryView::exportSelectedRequested, this, &MainWindow::handleExportSelected);
     connect(homeView_, &HomeLibraryView::inlineDetailsRequested, this, &MainWindow::handleInlineDetailsRequested);
+    connect(homeView_, &HomeLibraryView::createBuildLinkRequested, this, &MainWindow::handleCreateBuildLink);
 
     refreshFromSession();
+    QTimer::singleShot(0, this, &MainWindow::runStartupAutomation);
 }
 
 void MainWindow::handleOpenSave() {
@@ -161,6 +180,20 @@ void MainWindow::handleInlineDetailsRequested() {
         return;
     }
     presentDetailDialog(*lastDetailDialogPayload_);
+}
+
+void MainWindow::handleCreateBuildLink() {
+    const auto selected = homeView_->selectedItem();
+    if (!selected.has_value() || !selected->acPreview.has_value() || selected->acPreview->buildLinkUrl.empty()) {
+        homeView_->setInlineStatus(tr("Build link export is not available for the current AC."), true, false);
+        return;
+    }
+
+    if (auto* clipboard = QGuiApplication::clipboard(); clipboard != nullptr) {
+        clipboard->setText(QString::fromStdString(selected->acPreview->buildLinkUrl));
+        homeView_->setLastActionSummary(tr("Link copied to clipboard."), false);
+        homeView_->setInlineStatus(tr("Link copied to clipboard."), false, false);
+    }
 }
 
 void MainWindow::runImportToUserSlot(const contracts::CatalogItemDto& selected) {
@@ -279,6 +312,59 @@ void MainWindow::showOpenSaveOutcome(const contracts::OpenSaveResultDto& result)
     homeView_->setLastActionSummary(summary, failed);
     homeView_->setInlineStatus(summary, failed, true);
     presentDetailDialog(payload);
+}
+
+void MainWindow::runStartupAutomation() {
+    if (!startupSavePath_.has_value()) {
+        if (const QByteArray screenshotPath = qgetenv("AC6DM_AUTO_SCREENSHOT_PATH"); !screenshotPath.isEmpty()) {
+            const bool exitAfter = qgetenv("AC6DM_AUTO_EXIT_AFTER_SCREENSHOT") == "1";
+            const auto outputPath = std::filesystem::path(QString::fromLocal8Bit(screenshotPath).toStdWString());
+            QTimer::singleShot(350, this, [this, outputPath, exitAfter]() {
+                captureDiagnosticScreenshot(outputPath, exitAfter);
+            });
+        }
+        return;
+    }
+
+    const auto path = *startupSavePath_;
+    startupSavePath_.reset();
+    const auto result = services_.openSaveService->openSourceSave(path);
+    services_.catalogQueryService->replace(result);
+    refreshFromSession();
+    showOpenSaveOutcome(result);
+    if (!result.session.hasRealSave) {
+        return;
+    }
+
+    homeView_->setCurrentLibrary(contracts::AssetKind::Ac);
+    if (startupAcRow_.has_value()) {
+        homeView_->selectVisibleRow(contracts::AssetKind::Ac, *startupAcRow_);
+    } else {
+        homeView_->selectVisibleRow(contracts::AssetKind::Ac, 0);
+    }
+
+    if (const QByteArray screenshotPath = qgetenv("AC6DM_AUTO_SCREENSHOT_PATH"); !screenshotPath.isEmpty()) {
+        const bool exitAfter = qgetenv("AC6DM_AUTO_EXIT_AFTER_SCREENSHOT") == "1";
+        const auto outputPath = std::filesystem::path(QString::fromLocal8Bit(screenshotPath).toStdWString());
+        QTimer::singleShot(450, this, [this, outputPath, exitAfter]() {
+            captureDiagnosticScreenshot(outputPath, exitAfter);
+        });
+    }
+}
+
+void MainWindow::captureDiagnosticScreenshot(const std::filesystem::path& outputPath, const bool exitAfterCapture) {
+    if (!outputPath.has_parent_path()) {
+        return;
+    }
+
+    QDir().mkpath(QString::fromStdWString(outputPath.parent_path().wstring()));
+    grab().save(QString::fromStdWString(outputPath.wstring()));
+
+    if (exitAfterCapture) {
+        QTimer::singleShot(100, qApp, []() {
+            QCoreApplication::quit();
+        });
+    }
 }
 
 void MainWindow::presentActionResult(const contracts::ActionResultDto& result, const QString& successSummary,
