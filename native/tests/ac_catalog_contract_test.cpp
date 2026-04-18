@@ -448,25 +448,46 @@ TEST(AcCatalogContractTest, PreserveContainerFirstRecordDesignOffsetWhenAppendin
         makeRecordPayload(0x50, 0),
     }));
 
-    const auto before = ac6dm::ac::debugSummarizeContainers(tempRoot);
-    const auto beforeUser3 = std::find_if(before.begin(), before.end(), [](const auto& summary) {
-        return summary.containerFile == "USER_DATA004";
-    });
-    ASSERT_NE(beforeUser3, before.end());
-    EXPECT_EQ(beforeUser3->firstRecordDesignOffset, 135U);
-    EXPECT_EQ(beforeUser3->recordCountField, 1U);
+    const auto beforeBytes = readBytes(tempRoot / "USER_DATA004");
+    ASSERT_GT(beforeBytes.size(), 16U);
+    std::array<std::uint8_t, 16> beforeIv{};
+    std::copy_n(beforeBytes.begin(), 16, beforeIv.begin());
+    const auto beforePlain = decryptPlaintext(
+        std::vector<std::uint8_t>(beforeBytes.begin() + 16, beforeBytes.end()),
+        beforeIv);
+    std::uint32_t beforeFirstRecordDesignOffset = 0;
+    std::uint32_t beforeRecordCount = 0;
+    std::memcpy(&beforeFirstRecordDesignOffset, beforePlain.data() + 12, sizeof(beforeFirstRecordDesignOffset));
+    std::memcpy(&beforeRecordCount, beforePlain.data() + 16, sizeof(beforeRecordCount));
+    EXPECT_EQ(beforeFirstRecordDesignOffset, 135U);
+    EXPECT_EQ(beforeRecordCount, 1U);
 
     const auto snapshot = ac6dm::ac::buildProvisionalCatalogSnapshot(tempRoot);
     const auto payload = ac6dm::ac::readRecordPayload(tempRoot, "ac:share:0", snapshot);
     ac6dm::ac::applyPayloadToUserSlot(tempRoot, payload, 2);
 
-    const auto after = ac6dm::ac::debugSummarizeContainers(tempRoot);
-    const auto afterUser3 = std::find_if(after.begin(), after.end(), [](const auto& summary) {
-        return summary.containerFile == "USER_DATA004";
-    });
-    ASSERT_NE(afterUser3, after.end());
-    EXPECT_EQ(afterUser3->firstRecordDesignOffset, 135U);
-    EXPECT_EQ(afterUser3->recordCountField, 2U);
+    const auto afterBytes = readBytes(tempRoot / "USER_DATA004");
+    ASSERT_GT(afterBytes.size(), 16U);
+    std::array<std::uint8_t, 16> afterIv{};
+    std::copy_n(afterBytes.begin(), 16, afterIv.begin());
+    const auto afterPlain = decryptPlaintext(
+        std::vector<std::uint8_t>(afterBytes.begin() + 16, afterBytes.end()),
+        afterIv);
+    std::uint32_t afterFirstRecordDesignOffset = 0;
+    std::uint32_t afterRecordCount = 0;
+    std::memcpy(&afterFirstRecordDesignOffset, afterPlain.data() + 12, sizeof(afterFirstRecordDesignOffset));
+    std::memcpy(&afterRecordCount, afterPlain.data() + 16, sizeof(afterRecordCount));
+    EXPECT_EQ(afterFirstRecordDesignOffset, 135U);
+    EXPECT_EQ(afterRecordCount, 2U);
+
+    const auto rebuiltSnapshot = ac6dm::ac::buildProvisionalCatalogSnapshot(tempRoot);
+    const auto rebuiltUser3Count = std::count_if(
+        rebuiltSnapshot.records.begin(),
+        rebuiltSnapshot.records.end(),
+        [](const auto& record) {
+            return record.sourceBucket == ac6dm::contracts::SourceBucket::User3;
+        });
+    EXPECT_EQ(rebuiltUser3Count, 2);
 
     std::filesystem::remove_all(tempRoot);
 }

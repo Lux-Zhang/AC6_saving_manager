@@ -58,31 +58,8 @@ struct AcWriteReadback final {
     bool payloadMatches{false};
 };
 
-struct AcContainerRecordDebugSummary final {
-    int recordIndex{-1};
-    std::string stableId;
-    std::uint64_t byteOffset{0};
-    std::uint64_t byteLength{0};
-    std::string archiveName;
-    std::string machineName;
-    std::string shareCode;
-};
-
-struct AcContainerDebugSummary final {
-    std::string containerFile;
-    std::uint32_t capacityField{0};
-    std::uint32_t firstRecordDesignOffset{0};
-    std::uint32_t recordCountField{0};
-    int parsedRecordCount{0};
-    bool qualified{false};
-    std::string qualificationNote;
-    std::string footerHex;
-    std::vector<AcContainerRecordDebugSummary> records;
-};
-
 AcCatalogSnapshot buildProvisionalCatalogSnapshot(const std::filesystem::path& unpackedSaveDir);
 std::string serializeRecordRef(const AcRecordRef& recordRef);
-std::vector<AcContainerDebugSummary> debugSummarizeContainers(const std::filesystem::path& unpackedSaveDir);
 
 contracts::ImportPlanDto buildShareAcImportPlan(
     const AcCatalogSnapshot& snapshot,

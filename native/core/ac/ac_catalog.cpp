@@ -1091,51 +1091,6 @@ AcCatalogSnapshot buildProvisionalCatalogSnapshot(const std::filesystem::path& u
     return snapshot;
 }
 
-std::vector<AcContainerDebugSummary> debugSummarizeContainers(const std::filesystem::path& unpackedSaveDir) {
-    std::vector<AcContainerDebugSummary> summaries;
-    for (const auto& entry : kKnownAcSlotFiles) {
-        const auto filePath = unpackedSaveDir / entry.filename;
-        if (!std::filesystem::exists(filePath)) {
-            continue;
-        }
-
-        const auto container = parseContainerFile(filePath);
-        AcContainerDebugSummary summary;
-        summary.containerFile = filePath.filename().generic_string();
-        summary.capacityField = container.capacityField;
-        summary.firstRecordDesignOffset = container.firstRecordDesignOffset;
-        summary.recordCountField = container.recordCountField;
-        summary.parsedRecordCount = static_cast<int>(container.records.size());
-        summary.qualified = container.qualified;
-        summary.qualificationNote = container.qualificationNote;
-        summary.footerHex = bytesToHex(container.footerBytes);
-        summary.records.reserve(container.records.size());
-
-        for (int recordIndex = 0; recordIndex < static_cast<int>(container.records.size()); ++recordIndex) {
-            const auto& parsedRecord = container.records[static_cast<std::size_t>(recordIndex)];
-            AcDisplayMetadata metadata;
-            try {
-                metadata = extractDisplayMetadata(parsedRecord.rawBytes);
-            } catch (...) {
-                metadata = {};
-            }
-
-            summary.records.push_back({
-                .recordIndex = recordIndex,
-                .stableId = stableIdFor(parsedRecord.rawBytes),
-                .byteOffset = parsedRecord.beginOffset,
-                .byteLength = parsedRecord.endOffsetExclusive - parsedRecord.beginOffset,
-                .archiveName = metadata.archiveName,
-                .machineName = metadata.machineName,
-                .shareCode = metadata.shareCode,
-            });
-        }
-
-        summaries.push_back(std::move(summary));
-    }
-    return summaries;
-}
-
 contracts::ImportPlanDto buildShareAcImportPlan(
     const AcCatalogSnapshot& snapshot,
     const std::string& assetId,

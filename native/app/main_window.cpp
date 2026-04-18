@@ -5,13 +5,9 @@
 #include "target_slot_dialog.hpp"
 
 #include <QClipboard>
-#include <QCoreApplication>
-#include <QDir>
 #include <QGuiApplication>
 #include <QMessageBox>
-#include <QPixmap>
 #include <QScreen>
-#include <QTimer>
 
 namespace ac6dm::app {
 namespace {
@@ -70,13 +66,9 @@ QStringList buildPlanIssueLines(const std::vector<std::string>& issues) {
 
 }  // namespace
 
-MainWindow::MainWindow(AppServices services, QWidget* parent,
-    std::optional<std::filesystem::path> startupSavePath,
-    std::optional<int> startupAcRow)
+MainWindow::MainWindow(AppServices services, QWidget* parent)
     : QMainWindow(parent),
-      services_(std::move(services)),
-      startupSavePath_(std::move(startupSavePath)),
-      startupAcRow_(startupAcRow) {
+      services_(std::move(services)) {
     setWindowTitle(tr("AC6 Saving Manager"));
     const QRect availableGeometry = QGuiApplication::primaryScreen() != nullptr
         ? QGuiApplication::primaryScreen()->availableGeometry()
@@ -96,7 +88,6 @@ MainWindow::MainWindow(AppServices services, QWidget* parent,
     connect(homeView_, &HomeLibraryView::createBuildLinkRequested, this, &MainWindow::handleCreateBuildLink);
 
     refreshFromSession();
-    QTimer::singleShot(0, this, &MainWindow::runStartupAutomation);
 }
 
 void MainWindow::handleOpenSave() {
@@ -312,59 +303,6 @@ void MainWindow::showOpenSaveOutcome(const contracts::OpenSaveResultDto& result)
     homeView_->setLastActionSummary(summary, failed);
     homeView_->setInlineStatus(summary, failed, true);
     presentDetailDialog(payload);
-}
-
-void MainWindow::runStartupAutomation() {
-    if (!startupSavePath_.has_value()) {
-        if (const QByteArray screenshotPath = qgetenv("AC6DM_AUTO_SCREENSHOT_PATH"); !screenshotPath.isEmpty()) {
-            const bool exitAfter = qgetenv("AC6DM_AUTO_EXIT_AFTER_SCREENSHOT") == "1";
-            const auto outputPath = std::filesystem::path(QString::fromLocal8Bit(screenshotPath).toStdWString());
-            QTimer::singleShot(350, this, [this, outputPath, exitAfter]() {
-                captureDiagnosticScreenshot(outputPath, exitAfter);
-            });
-        }
-        return;
-    }
-
-    const auto path = *startupSavePath_;
-    startupSavePath_.reset();
-    const auto result = services_.openSaveService->openSourceSave(path);
-    services_.catalogQueryService->replace(result);
-    refreshFromSession();
-    showOpenSaveOutcome(result);
-    if (!result.session.hasRealSave) {
-        return;
-    }
-
-    homeView_->setCurrentLibrary(contracts::AssetKind::Ac);
-    if (startupAcRow_.has_value()) {
-        homeView_->selectVisibleRow(contracts::AssetKind::Ac, *startupAcRow_);
-    } else {
-        homeView_->selectVisibleRow(contracts::AssetKind::Ac, 0);
-    }
-
-    if (const QByteArray screenshotPath = qgetenv("AC6DM_AUTO_SCREENSHOT_PATH"); !screenshotPath.isEmpty()) {
-        const bool exitAfter = qgetenv("AC6DM_AUTO_EXIT_AFTER_SCREENSHOT") == "1";
-        const auto outputPath = std::filesystem::path(QString::fromLocal8Bit(screenshotPath).toStdWString());
-        QTimer::singleShot(450, this, [this, outputPath, exitAfter]() {
-            captureDiagnosticScreenshot(outputPath, exitAfter);
-        });
-    }
-}
-
-void MainWindow::captureDiagnosticScreenshot(const std::filesystem::path& outputPath, const bool exitAfterCapture) {
-    if (!outputPath.has_parent_path()) {
-        return;
-    }
-
-    QDir().mkpath(QString::fromStdWString(outputPath.parent_path().wstring()));
-    grab().save(QString::fromStdWString(outputPath.wstring()));
-
-    if (exitAfterCapture) {
-        QTimer::singleShot(100, qApp, []() {
-            QCoreApplication::quit();
-        });
-    }
 }
 
 void MainWindow::presentActionResult(const contracts::ActionResultDto& result, const QString& successSummary,
